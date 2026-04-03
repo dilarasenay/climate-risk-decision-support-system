@@ -149,6 +149,14 @@ def apply_chart_style(fig, height=360, showlegend=False):
     return fig
 
 
+def minmax_normalize(series: pd.Series) -> pd.Series:
+    min_val = series.min()
+    max_val = series.max()
+    if pd.isna(min_val) or pd.isna(max_val) or max_val == min_val:
+        return pd.Series([0.0] * len(series), index=series.index)
+    return (series - min_val) / (max_val - min_val)
+
+
 # =========================================================
 # GÖRSELLER
 # =========================================================
@@ -190,11 +198,35 @@ except Exception as e:
 for col in [COL_YEAR, COL_TEMP, COL_CO2, COL_SEA, COL_EVENTS, COL_RISK]:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 
-df = df.dropna(subset=[COL_COUNTRY, COL_YEAR, COL_CO2, COL_RISK]).copy()
+df = df.dropna(subset=[COL_COUNTRY, COL_YEAR, COL_CO2, COL_RISK, COL_TEMP, COL_SEA, COL_EVENTS]).copy()
 
 if df.empty:
     st.error("Temizleme sonrası veri kalmadı.")
     st.stop()
+
+# =========================================================
+# NORMALİZASYON
+# =========================================================
+df["temp_norm"] = minmax_normalize(df[COL_TEMP])
+df["co2_norm"] = minmax_normalize(df[COL_CO2])
+df["sea_norm"] = minmax_normalize(df[COL_SEA])
+df["events_norm"] = minmax_normalize(df[COL_EVENTS])
+
+# =========================================================
+# CLIMATE PRESSURE SCORE
+# =========================================================
+df["climate_pressure_score"] = (
+    df["temp_norm"] * 0.25 +
+    df["co2_norm"] * 0.35 +
+    df["sea_norm"] * 0.20 +
+    df["events_norm"] * 0.20
+) * 100
+
+df["pressure_alert"] = df["climate_pressure_score"].apply(
+    lambda x: "Kritik İklim Baskısı" if x > 70 else
+              "Yüksek Baskı" if x > 50 else
+              "Normal"
+)
 
 # =========================================================
 # CSS
@@ -607,7 +639,7 @@ with left_col:
     )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
-    st.markdown("###  Analiz Filtreleri")
+    st.markdown("### 🎛 Analiz Filtreleri")
 
     risk_level_options = ["Tümü", "Düşük", "Orta", "Yüksek", "Kritik"]
     selected_risk_level = st.selectbox("Risk Seviyesi", risk_level_options, key="risk_level_select")
@@ -620,6 +652,7 @@ with left_col:
         "Ortalama Sıcaklık": COL_TEMP,
         "Deniz Seviyesi Artışı": COL_SEA,
         "Aşırı Hava Olayı": COL_EVENTS,
+        "İklim Baskı Skoru": "climate_pressure_score",
     }
     selected_sort_label = st.selectbox(
         "Ülke Sıralama Ölçütü",
@@ -661,6 +694,15 @@ with left_col:
         key="events_range_slider",
     )
 
+    min_pressure_filter = st.slider(
+        "Minimum İklim Baskı Skoru",
+        min_value=float(df["climate_pressure_score"].min()),
+        max_value=float(df["climate_pressure_score"].max()),
+        value=float(df["climate_pressure_score"].min()),
+        step=1.0,
+        key="min_pressure_slider",
+    )
+
     auto_focus_top_country = st.checkbox(
         "Detay panelinde otomatik en riskli ülkeyi göster",
         value=False,
@@ -668,12 +710,13 @@ with left_col:
     )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
-    st.markdown("###  Aktif Filtre Özeti")
+    st.markdown("### 📌 Aktif Filtre Özeti")
     st.caption(f"Ülke: {selected_country}")
     st.caption(f"Yıl: {selected_year[0]} - {selected_year[1]}")
     st.caption(f"Risk seviyesi: {selected_risk_level}")
     st.caption(f"Top N: {top_n}")
     st.caption(f"Sadece uyarılar: {'Evet' if only_alerts else 'Hayır'}")
+    st.caption(f"Sıralama: {selected_sort_label}")
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
     st.markdown("### ➕ Yeni Kayıt")
@@ -721,6 +764,7 @@ filtered_df = df[
     (df[COL_YEAR] >= selected_year[0]) &
     (df[COL_YEAR] <= selected_year[1]) &
     (df[COL_RISK] >= min_risk_filter) &
+    (df["climate_pressure_score"] >= min_pressure_filter) &
     (df[COL_TEMP] >= selected_temp_range[0]) &
     (df[COL_TEMP] <= selected_temp_range[1]) &
     (df[COL_EVENTS] >= selected_events_range[0]) &
@@ -756,11 +800,19 @@ avg_co2 = round(filtered_df[COL_CO2].mean(), 3)
 avg_sea = round(filtered_df[COL_SEA].mean(), 2)
 avg_events = int(round(filtered_df[COL_EVENTS].mean(), 0))
 avg_risk = round(filtered_df[COL_RISK].mean(), 1)
+avg_pressure = round(filtered_df["climate_pressure_score"].mean(), 1)
 alert_count = int((filtered_df["dynamic_alert"] == "Yüksek Karbon Emisyonu Uyarısı").sum())
+pressure_alert_count = int((filtered_df["pressure_alert"] != "Normal").sum())
 
 country_risk_map = (
     filtered_df.groupby(COL_COUNTRY, as_index=False)
-    .agg({COL_RISK: "mean", COL_CO2: "mean", COL_TEMP: "mean", COL_EVENTS: "mean"})
+    .agg({
+        COL_RISK: "mean",
+        COL_CO2: "mean",
+        COL_TEMP: "mean",
+        COL_EVENTS: "mean",
+        "climate_pressure_score": "mean",
+    })
 )
 
 country_risk_bar = (
@@ -771,6 +823,7 @@ country_risk_bar = (
         COL_TEMP: "mean",
         COL_SEA: "mean",
         COL_EVENTS: "mean",
+        "climate_pressure_score": "mean",
     })
     .sort_values(selected_sort_col, ascending=False)
 )
@@ -800,6 +853,7 @@ if detail_df.empty:
 detail_avg_temp = round(detail_df[COL_TEMP].mean(), 2)
 detail_avg_co2 = round(detail_df[COL_CO2].mean(), 3)
 detail_avg_risk = round(detail_df[COL_RISK].mean(), 1)
+detail_avg_pressure = round(detail_df["climate_pressure_score"].mean(), 1)
 detail_alerts = int((detail_df["dynamic_alert"] == "Yüksek Karbon Emisyonu Uyarısı").sum())
 
 detail_yearly = (
@@ -808,7 +862,8 @@ detail_yearly = (
         COL_RISK: "mean",
         COL_CO2: "mean",
         COL_TEMP: "mean",
-        COL_EVENTS: "mean"
+        COL_EVENTS: "mean",
+        "climate_pressure_score": "mean"
     })
     .sort_values(COL_YEAR)
 )
@@ -822,7 +877,8 @@ bubble_df = (
     .agg({
         COL_CO2: "mean",
         COL_RISK: "mean",
-        COL_EVENTS: "mean"
+        COL_EVENTS: "mean",
+        "climate_pressure_score": "mean"
     })
     .sort_values(COL_RISK, ascending=False)
 )
@@ -840,19 +896,21 @@ filter_signature = (
     selected_sort_label,
     top_n,
     min_risk_filter,
+    min_pressure_filter,
     round(selected_temp_range[0], 2),
     round(selected_temp_range[1], 2),
     round(selected_events_range[0], 2),
     round(selected_events_range[1], 2),
     auto_focus_top_country
 )
+
 if "last_filter_signature" not in st.session_state:
     st.session_state.last_filter_signature = None
 
 show_alert = st.session_state.last_filter_signature != filter_signature
 st.session_state.last_filter_signature = filter_signature
 
-if alert_count > 0 and show_alert:
+if pressure_alert_count > 0 and show_alert:
     st.markdown(
         f"""
         <div class="alert-floating">
@@ -861,8 +919,8 @@ if alert_count > 0 and show_alert:
                 <div class="alert-pill">Yüksek Öncelik</div>
             </div>
             <div class="alert-text">
-                Filtrelenen sonuçlarda <strong>{alert_count}</strong> yüksek karbon emisyonu kaydı bulundu.
-                En yüksek CO₂ değeri <strong>{max_co2_value}</strong>.
+                Filtrelenen sonuçlarda <strong>{pressure_alert_count}</strong> çevresel baskı sinyali ve
+                <strong>{alert_count}</strong> yüksek CO₂ uyarısı bulundu.
             </div>
         </div>
         """,
@@ -900,7 +958,7 @@ with right_col:
     with k5:
         metric_kpi("📊 Risk Skoru", f"{avg_risk}", "Küresel risk endeksi", KPI_RISK)
     with k6:
-        metric_kpi("🌿 Alarm Baskısı", f"{alert_count}", "Yüksek emisyon uyarıları", KPI_BIO)
+        metric_kpi("🌍 İklim Baskı Skoru", f"{avg_pressure}", "Normalize edilmiş birleşik skor", KPI_BIO)
 
     st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
 
@@ -908,18 +966,19 @@ with right_col:
     map_col, info_col = st.columns([1.8, 1.0], gap="large")
 
     with map_col:
-        chart_title("Küresel İklim Risk Haritası", "Ülkelerin ortalama risk skorları ve çevresel baskı göstergeleri")
+        chart_title("Küresel İklim Baskı Haritası", "Normalize edilmiş çevresel baskı skoruna göre görünüm")
 
-        map_df = country_risk_map.copy().sort_values(COL_RISK, ascending=False)
+        map_df = country_risk_map.copy().sort_values("climate_pressure_score", ascending=False)
         top_map_points = map_df.head(5).copy()
 
         fig_map = px.choropleth(
             map_df,
             locations=COL_COUNTRY,
             locationmode="country names",
-            color=COL_RISK,
+            color="climate_pressure_score",
             hover_name=COL_COUNTRY,
             hover_data={
+                "climate_pressure_score": ':.1f',
                 COL_RISK: ':.1f',
                 COL_CO2: ':.3f',
                 COL_TEMP: ':.2f',
@@ -940,10 +999,11 @@ with right_col:
             marker_line_width=1.2,
             hovertemplate="""
             <b>%{hovertext}</b><br>
-            Risk Skoru: %{z:.1f}<br>
-            CO₂: %{customdata[1]:.3f}<br>
-            Sıcaklık: %{customdata[2]:.2f}°C<br>
-            Aşırı Olay: %{customdata[3]:.0f}<br>
+            İklim Baskı Skoru: %{z:.1f}<br>
+            Risk Skoru: %{customdata[1]:.1f}<br>
+            CO₂: %{customdata[2]:.3f}<br>
+            Sıcaklık: %{customdata[3]:.2f}°C<br>
+            Aşırı Olay: %{customdata[4]:.0f}<br>
             <extra></extra>
             """
         )
@@ -978,7 +1038,7 @@ with right_col:
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#10203a", family="Inter, Segoe UI, sans-serif"),
             coloraxis_colorbar=dict(
-                title=dict(text="Risk", font=dict(color="#10203a")),
+                title=dict(text="Baskı", font=dict(color="#10203a")),
                 thickness=16,
                 len=0.72,
                 outlinewidth=0,
@@ -1016,7 +1076,7 @@ with right_col:
             most_risky_country,
             [
                 f"Geçerli filtrelerde {most_risky_country} en dikkat çeken ülke olarak öne çıkıyor.",
-                f"Ortalama risk skoru {most_risky_score} ve aktif yüksek emisyon sinyali {alert_count}."
+                f"Ortalama risk skoru {most_risky_score} ve baskı sinyali {pressure_alert_count}.",
             ],
             risk_etiketi(most_risky_score),
             risk_rengi(most_risky_score),
@@ -1031,6 +1091,7 @@ with right_col:
                 f"Ortalama sıcaklık: {detail_avg_temp}°C",
                 f"CO₂ emisyonu: {detail_avg_co2}",
                 f"Risk skoru: {detail_avg_risk}",
+                f"İklim baskı skoru: {detail_avg_pressure}",
                 f"Uyarı sayısı: {detail_alerts}",
             ],
             risk_etiketi(detail_avg_risk),
@@ -1042,9 +1103,9 @@ with right_col:
         gauge = go.Figure(
             go.Indicator(
                 mode="gauge+number",
-                value=detail_avg_risk,
+                value=detail_avg_pressure,
                 number={"font": {"size": 34}},
-                title={"text": "İklim Risk Ölçeri", "font": {"size": 18}},
+                title={"text": "İklim Baskı Ölçeri", "font": {"size": 18}},
                 gauge={
                     "axis": {"range": [0, 100], "tickwidth": 1},
                     "bar": {"color": "#ef4444", "thickness": 0.28},
@@ -1089,19 +1150,19 @@ with right_col:
     row2_col1, row2_col2 = st.columns(2, gap="large")
 
     with row2_col1:
-        chart_title(f"En Riskli Ülkeler (İlk {top_n})", f"Sıralama ölçütü: {selected_sort_label}")
+        chart_title(f"Ülke Karşılaştırması (İlk {top_n})", f"Sıralama ölçütü: {selected_sort_label}")
         topn_df = country_risk_bar.head(top_n)
         fig_bar = px.bar(
             topn_df,
-            x=COL_RISK,
+            x=selected_sort_col,
             y=COL_COUNTRY,
             orientation="h",
-            color=COL_RISK,
+            color=selected_sort_col,
             color_continuous_scale="Plasma",
         )
         fig_bar.update_yaxes(categoryorder="total ascending")
         apply_chart_style(fig_bar, height=350)
-        fig_bar.update_layout(xaxis_title="Risk", yaxis_title="Ülke")
+        fig_bar.update_layout(xaxis_title=selected_sort_label, yaxis_title="Ülke")
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with row2_col2:
@@ -1111,7 +1172,7 @@ with right_col:
             x=COL_CO2,
             y=COL_RISK,
             size=COL_EVENTS,
-            color=COL_RISK,
+            color="climate_pressure_score",
             hover_name=COL_COUNTRY,
             color_continuous_scale="Sunsetdark",
             size_max=42,
@@ -1152,17 +1213,46 @@ with right_col:
 
     st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
 
+    section_header("Akıllı Skor Analitiği", "Normalize edilmiş çevresel baskı skorunun dağılımı ve zaman içi hareketi")
+    row4_col1, row4_col2 = st.columns(2, gap="large")
+
+    with row4_col1:
+        chart_title("İklim Baskı Skoru Trend Grafiği", "Seçili ülke için normalize edilmiş birleşik skorun yıllık hareketi")
+        fig_pressure_trend = px.line(detail_yearly, x=COL_YEAR, y="climate_pressure_score", markers=True)
+        fig_pressure_trend.update_traces(line=dict(width=3.5, color="#0f766e"), marker=dict(size=7))
+        apply_chart_style(fig_pressure_trend, height=320)
+        fig_pressure_trend.update_layout(xaxis_title="Yıl", yaxis_title="İklim Baskı Skoru")
+        st.plotly_chart(fig_pressure_trend, use_container_width=True)
+
+    with row4_col2:
+        chart_title("İklim Baskı Skoru Dağılımı", "Filtrelenmiş veri içindeki baskı skorlarının genel dağılımı")
+        fig_pressure = px.histogram(
+            filtered_df,
+            x="climate_pressure_score",
+            nbins=30,
+            color_discrete_sequence=["#0ea5e9"]
+        )
+        apply_chart_style(fig_pressure, height=320)
+        fig_pressure.update_layout(xaxis_title="İklim Baskı Skoru", yaxis_title="Frekans")
+        st.plotly_chart(fig_pressure, use_container_width=True)
+
+    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
+
     section_header("Uyarı Merkezi", "Yüksek karbon emisyonu sinyali taşıyan kayıtlar")
     chart_title("Karbon Emisyonu Uyarıları", "Filtrelenmiş veri içinde eşik değeri aşan kayıtların özet görünümü")
 
     if len(alerts) > 0:
-        alert_table = alerts[[COL_COUNTRY, COL_YEAR, COL_CO2, COL_RISK, "dynamic_alert"]].head(15).rename(
+        alert_table = alerts[
+            [COL_COUNTRY, COL_YEAR, COL_CO2, COL_RISK, "climate_pressure_score", "dynamic_alert", "pressure_alert"]
+        ].head(15).rename(
             columns={
                 COL_COUNTRY: "Ülke",
                 COL_YEAR: "Yıl",
                 COL_CO2: "CO₂ Emisyonu",
                 COL_RISK: "Risk Skoru",
-                "dynamic_alert": "Uyarı",
+                "climate_pressure_score": "İklim Baskı Skoru",
+                "dynamic_alert": "CO₂ Uyarısı",
+                "pressure_alert": "Baskı Durumu",
             }
         )
         st.dataframe(alert_table, use_container_width=True, hide_index=True)
