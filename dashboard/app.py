@@ -40,6 +40,12 @@ def safe_col(df: pd.DataFrame, candidates: list[str], required: bool = True):
     return None
 
 
+def fmt_num(value, digits=2):
+    if pd.isna(value):
+        return "-"
+    return f"{value:.{digits}f}"
+
+
 def risk_etiketi(score: float) -> str:
     if score < 25:
         return "Düşük"
@@ -52,12 +58,12 @@ def risk_etiketi(score: float) -> str:
 
 def risk_rengi(score: float) -> str:
     if score < 25:
-        return "#22c55e"
+        return "linear-gradient(135deg,#16a34a,#22c55e)"
     if score < 50:
-        return "#eab308"
+        return "linear-gradient(135deg,#facc15,#f97316)"
     if score < 75:
-        return "#f97316"
-    return "#ef4444"
+        return "linear-gradient(135deg,#f97316,#ef4444)"
+    return "linear-gradient(135deg,#ef4444,#7f1d1d)"
 
 
 def section_header(title: str, subtitle: str = ""):
@@ -89,15 +95,18 @@ def chart_title(title: str, subtitle: str = ""):
     )
 
 
-def metric_kpi(title: str, value: str, subtitle: str, bg_base64: str):
+def metric_kpi(icon: str, title: str, value: str, unit: str, subtitle: str, accent: str, bg_base64: str = ""):
+    bg_style = f"background-image:url('data:image/png;base64,{bg_base64}');" if bg_base64 else ""
     st.markdown(
         f"""
-        <div class="kpi-card" style="background-image:url('data:image/png;base64,{bg_base64}');">
-            <div class="kpi-overlay"></div>
-            <div class="kpi-content">
-                <div class="kpi-chip"></div>
+        <div class="kpi-card" style="{bg_style}">
+            <div class="kpi-dark"></div>
+            <div class="kpi-rainbow"></div>
+            <div class="kpi-orb" style="background:{accent};"></div>
+            <div class="kpi-icon" style="background:{accent};">{icon}</div>
+            <div class="kpi-text">
                 <div class="kpi-title">{title}</div>
-                <div class="kpi-value">{value}</div>
+                <div class="kpi-value">{value}<span>{unit}</span></div>
                 <div class="kpi-subtitle">{subtitle}</div>
             </div>
         </div>
@@ -121,30 +130,50 @@ def info_panel(title: str, big: str, lines: list[str], badge_text: str, badge_co
     )
 
 
-def apply_chart_style(fig, height=360, showlegend=False):
+def insight_item(icon: str, title: str, text: str, accent: str):
+    st.markdown(
+        f"""
+        <div class="insight-item">
+            <div class="insight-icon" style="background:{accent};">{icon}</div>
+            <div>
+                <div class="insight-title">{title}</div>
+                <div class="insight-text">{text}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def apply_chart_style(fig, height=320, showlegend=False):
     fig.update_layout(
         height=height,
         margin=dict(l=8, r=8, t=8, b=8),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="#f8fbfd",
-        font=dict(color="#10203a", family="Inter, Segoe UI, sans-serif"),
+        plot_bgcolor="rgba(255,255,255,0)",
+        font=dict(color="#0f1d3a", family="Inter, Segoe UI, sans-serif"),
         showlegend=showlegend,
+        hoverlabel=dict(
+            bgcolor="rgba(255,255,255,0.98)",
+            bordercolor="rgba(15,23,42,0.10)",
+            font=dict(color="#0f1d3a", size=13),
+        ),
     )
     fig.update_xaxes(
         showgrid=True,
-        gridcolor="rgba(15,23,42,0.07)",
+        gridcolor="rgba(15,23,42,0.055)",
         zeroline=False,
-        linecolor="rgba(15,23,42,0.08)",
-        tickfont=dict(color="#64748b"),
-        title_font=dict(color="#334155"),
+        linecolor="rgba(15,23,42,0.06)",
+        tickfont=dict(color="#64748b", size=11),
+        title_font=dict(color="#64748b", size=12),
     )
     fig.update_yaxes(
         showgrid=True,
-        gridcolor="rgba(15,23,42,0.07)",
+        gridcolor="rgba(15,23,42,0.055)",
         zeroline=False,
-        linecolor="rgba(15,23,42,0.08)",
-        tickfont=dict(color="#64748b"),
-        title_font=dict(color="#334155"),
+        linecolor="rgba(15,23,42,0.06)",
+        tickfont=dict(color="#64748b", size=11),
+        title_font=dict(color="#64748b", size=12),
     )
     return fig
 
@@ -158,7 +187,7 @@ def minmax_normalize(series: pd.Series) -> pd.Series:
 
 
 # =========================================================
-# GÖRSELLER
+# GÖRSELLER — SENİN RESİM YOLLARIN KORUNDU
 # =========================================================
 BG_IMG = img_to_base64(ASSETS_DIR / "background" / "background.png")
 HERO_IMG = img_to_base64(BASE_DIR / "dashboard" / "earth_placeholder.png")
@@ -169,6 +198,7 @@ KPI_SEA = img_to_base64(ASSETS_DIR / "kpi" / "sea.png") or BG_IMG
 KPI_WEATHER = img_to_base64(ASSETS_DIR / "kpi" / "weather.png") or BG_IMG
 KPI_RISK = img_to_base64(ASSETS_DIR / "kpi" / "risk.png") or BG_IMG
 KPI_BIO = img_to_base64(ASSETS_DIR / "kpi" / "bio.png") or BG_IMG
+
 
 # =========================================================
 # VERİ
@@ -204,17 +234,15 @@ if df.empty:
     st.error("Temizleme sonrası veri kalmadı.")
     st.stop()
 
+
 # =========================================================
-# NORMALİZASYON
+# NORMALİZASYON VE SKOR
 # =========================================================
 df["temp_norm"] = minmax_normalize(df[COL_TEMP])
 df["co2_norm"] = minmax_normalize(df[COL_CO2])
 df["sea_norm"] = minmax_normalize(df[COL_SEA])
 df["events_norm"] = minmax_normalize(df[COL_EVENTS])
 
-# =========================================================
-# CLIMATE PRESSURE SCORE
-# =========================================================
 df["climate_pressure_score"] = (
     df["temp_norm"] * 0.25 +
     df["co2_norm"] * 0.35 +
@@ -228,22 +256,28 @@ df["pressure_alert"] = df["climate_pressure_score"].apply(
               "Normal"
 )
 
+
 # =========================================================
-# CSS
+# CSS — ŞIKIR ŞIKIR PREMIUM FINAL
 # =========================================================
 st.markdown(
     f"""
 <style>
 :root {{
-    --bg-main: #eef4f8;
-    --bg-soft: #f8fbfd;
-    --panel: rgba(255,255,255,0.96);
-    --panel-soft: rgba(255,255,255,0.90);
-    --ink: #10203a;
-    --ink-soft: #64748b;
-    --line: rgba(15,23,42,0.08);
-    --shadow-lg: 0 18px 40px rgba(15,23,42,0.08);
-    --shadow-md: 0 12px 24px rgba(15,23,42,0.05);
+    --navy: #0b1635;
+    --ink: #0f1d3a;
+    --muted: #64748b;
+    --soft-line: rgba(148, 163, 184, 0.25);
+    --blue: #2563eb;
+    --sky: #00d4ff;
+    --cyan: #06b6d4;
+    --green: #22c55e;
+    --lime: #84cc16;
+    --yellow: #facc15;
+    --orange: #fb923c;
+    --red: #ef4444;
+    --pink: #ec4899;
+    --purple: #8b5cf6;
 }}
 
 html, body, [class*="css"] {{
@@ -252,22 +286,46 @@ html, body, [class*="css"] {{
 
 .stApp {{
     background:
-        radial-gradient(circle at top left, rgba(56,189,248,0.08), transparent 22%),
-        linear-gradient(180deg, #edf4f8 0%, #f8fbfd 100%);
+        radial-gradient(circle at 8% 10%, rgba(0,212,255,0.25), transparent 26%),
+        radial-gradient(circle at 88% 9%, rgba(34,197,94,0.20), transparent 30%),
+        radial-gradient(circle at 80% 78%, rgba(255,122,0,0.15), transparent 28%),
+        radial-gradient(circle at 34% 86%, rgba(139,92,246,0.18), transparent 34%),
+        linear-gradient(135deg, #e8f8ff 0%, #f7fff8 42%, #fff7ed 100%);
     color: var(--ink);
 }}
 
-.block-container {{
-    max-width: 1800px !important;
-    padding-top: 1rem;
-    padding-bottom: 2rem;
-    padding-left: 1.4rem;
-    padding-right: 1.4rem;
+.stApp::before {{
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.05)),
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.48), transparent 22%);
+    z-index: 0;
 }}
 
-header[data-testid="stHeader"],
-footer,
-#MainMenu {{
+.stApp::after {{
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .16;
+    background-image:
+        linear-gradient(rgba(15,23,42,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15,23,42,0.035) 1px, transparent 1px);
+    background-size: 46px 46px;
+    z-index: 0;
+}}
+
+.block-container {{
+    max-width: 1880px !important;
+    padding: 1.35rem 1.35rem 2rem 1.35rem !important;
+    position: relative;
+    z-index: 1;
+}}
+
+header[data-testid="stHeader"], footer, #MainMenu {{
     visibility: hidden;
 }}
 
@@ -281,192 +339,311 @@ section[data-testid="stSidebar"] {{
 }}
 
 .control-panel {{
-    background:
-        linear-gradient(180deg, rgba(248,251,253,0.98), rgba(241,247,250,0.96));
-    border: 1px solid rgba(255,255,255,0.92);
-    border-radius: 28px;
-    padding: 1.1rem 1rem 1rem 1rem;
-    box-shadow: var(--shadow-lg);
+    background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(231,247,255,0.64));
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    border: 1px solid rgba(255,255,255,0.85);
+    border-radius: 30px;
+    padding: 1.18rem 1.05rem;
+    box-shadow:
+        0 24px 70px rgba(37,99,235,0.12),
+        0 12px 32px rgba(20,184,166,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.95);
+}}
+
+.brand-card {{
+    display: flex;
+    align-items: center;
+    gap: .72rem;
+    margin-bottom: 1.2rem;
+}}
+
+.brand-icon {{
+    width: 48px;
+    height: 48px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.55rem;
+    background: linear-gradient(135deg, #00d4ff, #2563eb, #14b8a6);
+    box-shadow: 0 16px 32px rgba(37,99,235,0.26);
+}}
+
+.brand-title {{
+    font-size: 1.22rem;
+    line-height: 1.08;
+    font-weight: 950;
+    color: #0b1635;
+    letter-spacing: -.5px;
+}}
+
+.brand-sub {{
+    font-size: .82rem;
+    font-weight: 750;
+    color: #64748b;
+    margin-top: .14rem;
 }}
 
 .control-topline {{
-    width: 72px;
-    height: 6px;
+    width: 138px;
+    height: 7px;
     border-radius: 999px;
-    background: linear-gradient(90deg, #06b6d4, #22c55e);
-    margin-bottom: .9rem;
+    background: linear-gradient(90deg, #00d4ff, #2563eb, #22c55e, #facc15, #fb7185, #8b5cf6);
+    box-shadow: 0 12px 26px rgba(14,165,233,0.24);
+    margin-bottom: .95rem;
 }}
 
 .control-title {{
-    font-size: 1.2rem;
+    font-size: 1.12rem;
     font-weight: 950;
-    color: #10203a;
-    margin-bottom: .35rem;
+    color: #0f1d3a;
+    margin-bottom: .28rem;
 }}
 
 .control-text {{
-    font-size: .92rem;
-    line-height: 1.65;
+    font-size: .88rem;
+    line-height: 1.58;
     color: #64748b;
-    font-weight: 600;
+    font-weight: 650;
     margin-bottom: 1rem;
 }}
 
 .control-divider {{
     height: 1px;
-    background: rgba(15,23,42,0.08);
-    margin: .9rem 0 1rem 0;
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.18), transparent);
+    margin: .95rem 0 1rem 0;
 }}
 
 .hero {{
     position: relative;
     overflow: hidden;
-    min-height: 280px;
-    border-radius: 28px;
+    min-height: 312px;
+    border-radius: 36px;
     background:
-        linear-gradient(95deg, rgba(247,251,252,0.84) 0%, rgba(244,249,252,0.60) 42%, rgba(244,249,252,0.10) 100%),
+        linear-gradient(105deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.48) 44%, rgba(255,255,255,0.06) 100%),
         url("data:image/png;base64,{HERO_IMG}");
     background-size: cover;
     background-position: center;
-    border: 1px solid rgba(255,255,255,0.86);
-    box-shadow: var(--shadow-lg);
-    padding: 1.7rem 1.8rem;
-    margin-bottom: 1rem;
+    border: 1px solid rgba(255,255,255,0.82);
+    box-shadow:
+        0 34px 90px rgba(37,99,235,0.18),
+        0 14px 44px rgba(20,184,166,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.95);
+    padding: 2rem 2.35rem;
+    margin-bottom: 1.02rem;
+}}
+
+.hero::after {{
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 76% 32%, rgba(255,255,255,0.32), transparent 26%),
+        radial-gradient(circle at 68% 12%, rgba(0,212,255,0.16), transparent 22%),
+        linear-gradient(180deg, transparent 38%, rgba(255,255,255,0.17));
+    pointer-events: none;
 }}
 
 .hero-badge {{
+    position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
-    gap: .45rem;
-    padding: .58rem .92rem;
+    gap: .48rem;
+    padding: .62rem 1rem;
     border-radius: 999px;
-    background: rgba(255,255,255,0.90);
+    background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(224,247,255,0.78));
+    backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.92);
-    color: #10203a;
-    font-size: .86rem;
-    font-weight: 850;
-    margin-bottom: .85rem;
+    color: #0f1d3a;
+    font-size: .82rem;
+    font-weight: 950;
+    margin-bottom: .92rem;
+    box-shadow: 0 14px 30px rgba(37,99,235,0.10);
 }}
 
 .hero-title {{
-    font-size: 3rem;
-    line-height: .95;
+    position: relative;
+    z-index: 1;
+    font-size: 3.25rem;
+    line-height: .94;
     font-weight: 950;
-    letter-spacing: -1.6px;
-    color: #0c1631;
-    margin-bottom: .58rem;
-    max-width: 700px;
+    letter-spacing: -2px;
+    color: #0b1635;
+    margin-bottom: .66rem;
+    max-width: 780px;
+    text-shadow: 0 8px 28px rgba(255,255,255,0.38);
 }}
 
 .hero-text {{
+    position: relative;
+    z-index: 1;
     font-size: 1.02rem;
-    line-height: 1.78;
-    color: #435972;
-    font-weight: 650;
-    max-width: 740px;
+    line-height: 1.75;
+    color: #3f536d;
+    font-weight: 720;
+    max-width: 760px;
 }}
 
 .section-header {{
     display: flex;
     align-items: flex-start;
     gap: .75rem;
-    margin: .2rem 0 .8rem 0;
+    margin: .25rem 0 .82rem 0;
 }}
 
 .section-mark {{
     width: 8px;
     min-width: 8px;
-    height: 38px;
+    height: 44px;
     border-radius: 999px;
-    background: linear-gradient(180deg, #06b6d4, #22c55e);
-    box-shadow: 0 8px 16px rgba(6,182,212,0.18);
+    background: linear-gradient(180deg, #00d4ff, #2563eb, #22c55e, #facc15, #fb7185);
+    box-shadow: 0 12px 28px rgba(0,212,255,0.24);
 }}
 
 .section-title {{
-    font-size: 1.12rem;
+    font-size: 1.22rem;
     line-height: 1.12;
     font-weight: 950;
-    color: #10203a;
+    color: #0f1d3a;
+    letter-spacing: -.35px;
 }}
 
 .section-subtitle {{
-    margin-top: .14rem;
-    font-size: .9rem;
+    margin-top: .15rem;
+    font-size: .88rem;
     line-height: 1.5;
     color: #64748b;
-    font-weight: 600;
+    font-weight: 680;
 }}
 
 .kpi-card {{
     position: relative;
+    min-height: 128px;
+    border-radius: 24px;
     overflow: hidden;
-    min-height: 150px;
-    border-radius: 22px;
     background-size: cover;
     background-position: center;
-    border: 1px solid rgba(255,255,255,0.20);
-    box-shadow: 0 14px 28px rgba(15,23,42,0.14);
+    border: 1px solid rgba(255,255,255,0.82);
+    box-shadow:
+        0 18px 44px rgba(37,99,235,0.10),
+        0 8px 26px rgba(20,184,166,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.95);
+    transition: transform .22s ease, box-shadow .22s ease;
 }}
 
-.kpi-overlay {{
+.kpi-card:hover {{
+    transform: translateY(-5px) scale(1.012);
+    box-shadow:
+        0 28px 70px rgba(37,99,235,0.16),
+        0 14px 38px rgba(20,184,166,0.11),
+        inset 0 1px 0 rgba(255,255,255,0.98);
+}}
+
+.kpi-card::after {{
+    content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(6,10,16,0.14), rgba(6,10,16,0.68));
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.42) 42%, transparent 62%);
+    transform: translateX(-120%);
+    transition: transform .60s ease;
 }}
 
-.kpi-content {{
-    position: relative;
-    z-index: 1;
-    min-height: 150px;
-    padding: .95rem;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+.kpi-card:hover::after {{
+    transform: translateX(120%);
 }}
 
-.kpi-chip {{
-    width: 42px;
-    height: 4px;
+.kpi-glass {{
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(145deg, rgba(255,255,255,0.84), rgba(255,255,255,0.54)),
+        radial-gradient(circle at 18% 18%, rgba(255,255,255,0.70), transparent 28%);
+    backdrop-filter: blur(7px);
+}}
+
+.kpi-orb {{
+    position: absolute;
+    right: -34px;
+    top: -34px;
+    width: 128px;
+    height: 128px;
+    opacity: .24;
+    filter: blur(12px);
     border-radius: 999px;
-    background: rgba(255,255,255,0.92);
-    margin-bottom: auto;
+}}
+
+.kpi-icon {{
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    z-index: 2;
+    width: 46px;
+    height: 46px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.35rem;
+    box-shadow: 0 14px 26px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.3);
+}}
+
+.kpi-text {{
+    position: relative;
+    z-index: 2;
+    padding: 1rem 1rem 1rem 4.6rem;
 }}
 
 .kpi-title {{
-    font-size: .9rem;
-    font-weight: 850;
-    line-height: 1.28;
-    margin-top: .7rem;
+    font-size: .82rem;
+    font-weight: 950;
+    line-height: 1.25;
+    color: #18243f;
+    margin-bottom: .42rem;
 }}
 
 .kpi-value {{
-    font-size: 2.1rem;
+    font-size: 1.78rem;
     font-weight: 950;
     line-height: 1;
     letter-spacing: -1px;
-    margin: .28rem 0;
+    color: #0b1635;
+}}
+
+.kpi-value span {{
+    font-size: .85rem;
+    margin-left: .24rem;
+    color: #334155;
+    font-weight: 900;
 }}
 
 .kpi-subtitle {{
-    font-size: .83rem;
-    line-height: 1.42;
-    color: rgba(255,255,255,0.96);
+    font-size: .78rem;
+    line-height: 1.38;
+    color: #64748b;
+    font-weight: 750;
+    margin-top: .38rem;
 }}
 
 .info-panel {{
-    background: var(--panel);
-    border: 1px solid rgba(255,255,255,0.98);
-    border-radius: 22px;
-    padding: .95rem;
-    box-shadow: var(--shadow-md);
+    background: linear-gradient(145deg, rgba(255,255,255,0.82), rgba(232,247,255,0.58));
+    backdrop-filter: blur(22px);
+    border: 1px solid rgba(255,255,255,0.85);
+    border-radius: 26px;
+    padding: 1rem;
+    box-shadow:
+        0 22px 62px rgba(37,99,235,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.95);
     min-height: 150px;
 }}
 
 .info-eyebrow {{
-    font-size: .8rem;
-    font-weight: 900;
-    letter-spacing: .35px;
+    font-size: .75rem;
+    font-weight: 950;
+    letter-spacing: .52px;
     color: #64748b;
     text-transform: uppercase;
     margin-bottom: .42rem;
@@ -476,60 +653,142 @@ section[data-testid="stSidebar"] {{
     font-size: 1.82rem;
     line-height: 1.05;
     font-weight: 950;
-    color: #10203a;
-    letter-spacing: -.5px;
+    color: #0f1d3a;
+    letter-spacing: -.6px;
     margin-bottom: .38rem;
 }}
 
 .info-line {{
-    font-size: .9rem;
-    line-height: 1.58;
-    color: #55667c;
-    font-weight: 600;
+    font-size: .88rem;
+    line-height: 1.56;
+    color: #4f6178;
+    font-weight: 700;
 }}
 
 .info-badge {{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: .38rem .78rem;
+    padding: .42rem .86rem;
     border-radius: 999px;
     color: white;
+    font-size: .76rem;
+    font-weight: 950;
+    margin-top: .74rem;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.12);
+}}
+
+.insight-item {{
+    display: flex;
+    gap: .75rem;
+    align-items: flex-start;
+    background: rgba(255,255,255,0.68);
+    border: 1px solid rgba(255,255,255,0.76);
+    border-radius: 20px;
+    padding: .82rem;
+    margin-bottom: .58rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}}
+
+.insight-icon {{
+    width: 38px;
+    height: 38px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.12rem;
+    box-shadow: 0 12px 22px rgba(15,23,42,0.12);
+}}
+
+.insight-title {{
+    font-size: .82rem;
+    font-weight: 950;
+    color: #0f1d3a;
+    margin-bottom: .15rem;
+}}
+
+.insight-text {{
     font-size: .78rem;
-    font-weight: 900;
-    margin-top: .72rem;
+    line-height: 1.42;
+    color: #64748b;
+    font-weight: 700;
 }}
 
 .chart-head {{
-    margin: .1rem 0 .35rem 0;
+    margin: .12rem 0 .38rem 0;
 }}
 
 .chart-title {{
-    font-size: 1rem;
+    font-size: .98rem;
     font-weight: 950;
-    color: #10203a;
+    color: #0f1d3a;
     line-height: 1.16;
+    letter-spacing: -.2px;
 }}
 
 .chart-subtitle {{
-    font-size: .85rem;
+    font-size: .80rem;
     line-height: 1.45;
     color: #64748b;
-    font-weight: 600;
+    font-weight: 680;
     margin-top: .14rem;
+}}
+
+[data-testid="stPlotlyChart"] {{
+    background: linear-gradient(145deg, rgba(255,255,255,0.66), rgba(228,248,255,0.42)) !important;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.86) !important;
+    border-radius: 28px !important;
+    box-shadow:
+        0 24px 70px rgba(37,99,235,0.10),
+        0 12px 34px rgba(20,184,166,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.92) !important;
+    padding: .62rem !important;
+    transition: transform .2s ease, box-shadow .2s ease;
+    margin-bottom: .3rem !important;
+}}
+
+[data-testid="stPlotlyChart"] > div {{
+    background: transparent !important;
+}}
+
+[data-testid="stPlotlyChart"]:hover {{
+    transform: translateY(-4px);
+    box-shadow:
+        0 34px 90px rgba(37,99,235,0.15),
+        0 18px 48px rgba(20,184,166,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.96) !important;
+}}
+
+.risk-gauge-shell {{
+    background: linear-gradient(145deg, rgba(255,255,255,0.80), rgba(237,247,255,0.58));
+    border: 1px solid rgba(255,255,255,0.90);
+    border-radius: 30px;
+    padding: .85rem;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.45),
+        0 24px 70px rgba(37,99,235,0.12),
+        0 18px 48px rgba(236,72,153,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.95);
 }}
 
 .alert-floating {{
     position: fixed;
     top: 14px;
-    right: 16px;
+    right: 14px;
     z-index: 9999;
-    width: 290px;
-    border-radius: 18px;
-    padding: .82rem .88rem;
-    background: rgba(255,242,242,0.98);
-    border: 1px solid rgba(239,68,68,0.14);
-    box-shadow: 0 14px 28px rgba(120,30,30,0.10);
+    width: 292px;
+    border-radius: 24px;
+    padding: .82rem .9rem;
+    background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,242,232,0.78));
+    backdrop-filter: blur(22px);
+    border: 1px solid rgba(255,255,255,0.80);
+    box-shadow:
+        0 26px 70px rgba(249,115,22,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.92);
 }}
 
 .alert-top {{
@@ -541,7 +800,7 @@ section[data-testid="stSidebar"] {{
 }}
 
 .alert-title {{
-    font-size: .94rem;
+    font-size: .90rem;
     font-weight: 950;
     color: #b42318;
 }}
@@ -550,34 +809,30 @@ section[data-testid="stSidebar"] {{
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: .28rem .58rem;
+    padding: .26rem .54rem;
     border-radius: 999px;
-    background: rgba(239,68,68,0.10);
+    background: linear-gradient(135deg, rgba(239,68,68,0.16), rgba(249,115,22,0.12));
     color: #b42318;
-    font-size: .72rem;
-    font-weight: 900;
+    font-size: .68rem;
+    font-weight: 950;
 }}
 
 .alert-text {{
-    font-size: .83rem;
-    line-height: 1.56;
+    font-size: .78rem;
+    line-height: 1.52;
     color: #8b2b2b;
-    font-weight: 600;
-}}
-
-[data-testid="stPlotlyChart"] {{
-    background: rgba(255,255,255,0.92) !important;
-    border: 1px solid rgba(255,255,255,0.98) !important;
-    border-radius: 22px !important;
-    box-shadow: 0 12px 24px rgba(15,23,42,0.05) !important;
-    padding: .35rem !important;
+    font-weight: 700;
 }}
 
 [data-testid="stDataFrame"] {{
-    background: rgba(255,255,255,0.98) !important;
-    border-radius: 18px !important;
+    background: rgba(255,255,255,0.72) !important;
+    backdrop-filter: blur(18px);
+    border-radius: 24px !important;
     overflow: hidden !important;
-    border: 1px solid rgba(255,255,255,0.98) !important;
+    border: 1px solid rgba(255,255,255,0.78) !important;
+    box-shadow:
+        0 22px 58px rgba(37,99,235,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.85) !important;
 }}
 
 .stSelectbox label,
@@ -585,40 +840,172 @@ section[data-testid="stSidebar"] {{
 .stTextInput label,
 .stNumberInput label,
 .stCheckbox label {{
-    color: #10203a !important;
-    font-weight: 800 !important;
-    font-size: .88rem !important;
+    color: #0f1d3a !important;
+    font-weight: 850 !important;
+    font-size: .84rem !important;
+}}
+
+.stSelectbox div[data-baseweb="select"] > div,
+.stTextInput input,
+.stNumberInput input {{
+    background: rgba(255,255,255,0.68) !important;
+    border: 1px solid rgba(255,255,255,0.82) !important;
+    border-radius: 15px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.80);
+}}
+
+.stSlider [data-baseweb="slider"] div[role="slider"] {{
+    background-color: #2563eb !important;
+    border-color: white !important;
+    box-shadow: 0 0 0 5px rgba(37,99,235,0.18) !important;
 }}
 
 .stDownloadButton button,
 .stFormSubmitButton button,
 .stButton button {{
-    border-radius: 14px !important;
-    background: rgba(255,255,255,0.98) !important;
-    color: #10203a !important;
-    border: 1px solid rgba(15,23,42,0.10) !important;
-    font-weight: 850 !important;
+    background: linear-gradient(135deg, #2563eb, #00d4ff, #14b8a6) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 16px !important;
+    font-weight: 900 !important;
+    box-shadow:
+        0 14px 32px rgba(37,99,235,0.26),
+        inset 0 1px 0 rgba(255,255,255,0.28) !important;
+    transition: transform .18s ease, box-shadow .18s ease;
+}}
+
+.stDownloadButton button:hover,
+.stFormSubmitButton button:hover,
+.stButton button:hover {{
+    transform: translateY(-2px);
+    box-shadow:
+        0 20px 44px rgba(37,99,235,0.34),
+        inset 0 1px 0 rgba(255,255,255,0.32) !important;
 }}
 
 .element-container {{
-    margin-bottom: .34rem !important;
+    margin-bottom: .28rem !important;
 }}
+
+.stMarkdown h3 {{
+    color: #0f1d3a !important;
+    font-weight: 950 !important;
+    letter-spacing: -.4px !important;
+}}
+
+/* =========================================================
+   FINAL OVERRIDE — RENGARENK + GRAFİK/BACKGROUND BÜTÜN + KPI RESİMLERİ KORUNDU
+   ========================================================= */
+.stApp {
+    background:
+        radial-gradient(circle at 7% 8%, rgba(0,212,255,0.34), transparent 28%),
+        radial-gradient(circle at 88% 10%, rgba(34,197,94,0.28), transparent 30%),
+        radial-gradient(circle at 78% 72%, rgba(255,122,0,0.22), transparent 30%),
+        radial-gradient(circle at 28% 88%, rgba(168,85,247,0.24), transparent 36%),
+        radial-gradient(circle at 48% 44%, rgba(236,72,153,0.10), transparent 32%),
+        linear-gradient(135deg, #ddf7ff 0%, #f0fff4 38%, #fff1df 72%, #f7edff 100%) !important;
+}
+
+.kpi-glass { display: none !important; }
+
+.kpi-dark {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(5,10,22,0.74), rgba(5,10,22,0.30)),
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.32));
+}
+
+.kpi-rainbow {
+    position: absolute;
+    inset: 0;
+    opacity: .28;
+    background:
+        radial-gradient(circle at 16% 12%, rgba(0,212,255,0.55), transparent 28%),
+        radial-gradient(circle at 82% 20%, rgba(34,197,94,0.48), transparent 30%),
+        radial-gradient(circle at 76% 88%, rgba(249,115,22,0.46), transparent 32%),
+        radial-gradient(circle at 20% 88%, rgba(168,85,247,0.44), transparent 32%);
+}
+
+.kpi-title { color: rgba(255,255,255,0.96) !important; }
+.kpi-value { color: #fff !important; text-shadow: 0 10px 22px rgba(0,0,0,0.24) !important; }
+.kpi-value span { color: rgba(255,255,255,0.88) !important; }
+.kpi-subtitle { color: rgba(255,255,255,0.86) !important; }
+
+[data-testid="stPlotlyChart"] {
+    background:
+        radial-gradient(circle at 10% 12%, rgba(0,212,255,0.20), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(34,197,94,0.18), transparent 34%),
+        radial-gradient(circle at 50% 100%, rgba(249,115,22,0.14), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.40), rgba(255,255,255,0.14)) !important;
+    backdrop-filter: blur(30px) saturate(1.38) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(1.38) !important;
+    border: 1px solid rgba(255,255,255,0.48) !important;
+    border-radius: 30px !important;
+    box-shadow:
+        0 22px 64px rgba(0,212,255,0.12),
+        0 18px 50px rgba(34,197,94,0.09),
+        0 12px 34px rgba(249,115,22,0.07),
+        inset 0 1px 0 rgba(255,255,255,0.58) !important;
+    padding: .55rem !important;
+    margin-bottom: .18rem !important;
+}
+
+[data-testid="stPlotlyChart"] svg,
+[data-testid="stPlotlyChart"] > div {
+    background: transparent !important;
+}
+
+.control-panel,
+.info-panel,
+.risk-gauge-shell,
+[data-testid="stDataFrame"] {
+    background:
+        radial-gradient(circle at 12% 10%, rgba(0,212,255,0.14), transparent 32%),
+        radial-gradient(circle at 86% 16%, rgba(34,197,94,0.13), transparent 32%),
+        linear-gradient(145deg, rgba(255,255,255,0.50), rgba(255,255,255,0.22)) !important;
+    backdrop-filter: blur(28px) saturate(1.25) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(1.25) !important;
+    border: 1px solid rgba(255,255,255,0.52) !important;
+}
+
+.kpi-card {
+    box-shadow:
+        0 18px 46px rgba(0,212,255,0.14),
+        0 12px 32px rgba(34,197,94,0.10),
+        0 8px 24px rgba(249,115,22,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.65) !important;
+}
+
 </style>
 """,
     unsafe_allow_html=True,
 )
 
+
 # =========================================================
 # ANA LAYOUT
 # =========================================================
-left_col, right_col = st.columns([0.92, 4.15], gap="large")
+left_col, right_col = st.columns([0.86, 4.25], gap="large")
 
 with left_col:
     st.markdown('<div class="left-rail"><div class="control-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="control-topline"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="control-title">İklim Kontrol Paneli</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="control-text">Filtreler, eşik değerleri ve yeni kayıt ekleme işlemleri bu sabit panelden yönetilir.</div>',
+        """
+        <div class="brand-card">
+            <div class="brand-icon">🌍</div>
+            <div>
+                <div class="brand-title">İKLİM RİSK</div>
+                <div class="brand-sub">Gösterge Paneli</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="control-topline"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="control-title">🎛 Filtreler</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="control-text">Risk seviyesi, yıl aralığı ve çevresel eşikleri bu panelden yönet.</div>',
         unsafe_allow_html=True,
     )
 
@@ -639,7 +1026,6 @@ with left_col:
     )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
-    st.markdown("### 🎛 Analiz Filtreleri")
 
     risk_level_options = ["Tümü", "Düşük", "Orta", "Yüksek", "Kritik"]
     selected_risk_level = st.selectbox("Risk Seviyesi", risk_level_options, key="risk_level_select")
@@ -654,11 +1040,7 @@ with left_col:
         "Aşırı Hava Olayı": COL_EVENTS,
         "İklim Baskı Skoru": "climate_pressure_score",
     }
-    selected_sort_label = st.selectbox(
-        "Ülke Sıralama Ölçütü",
-        list(sort_metric_map.keys()),
-        key="sort_metric_select"
-    )
+    selected_sort_label = st.selectbox("Ülke Sıralama Ölçütü", list(sort_metric_map.keys()), key="sort_metric_select")
     selected_sort_col = sort_metric_map[selected_sort_label]
 
     top_n = st.slider("Grafiklerde Gösterilecek Ülke Sayısı", 5, 20, 10, key="top_n_slider")
@@ -705,18 +1087,17 @@ with left_col:
 
     auto_focus_top_country = st.checkbox(
         "Detay panelinde otomatik en riskli ülkeyi göster",
-        value=False,
+        value=True,
         key="auto_focus_top_country_check"
     )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
     st.markdown("### 📌 Aktif Filtre Özeti")
-    st.caption(f"Ülke: {selected_country}")
-    st.caption(f"Yıl: {selected_year[0]} - {selected_year[1]}")
-    st.caption(f"Risk seviyesi: {selected_risk_level}")
-    st.caption(f"Top N: {top_n}")
-    st.caption(f"Sadece uyarılar: {'Evet' if only_alerts else 'Hayır'}")
-    st.caption(f"Sıralama: {selected_sort_label}")
+    st.caption(f"🌐 Ülke: {selected_country}")
+    st.caption(f"📅 Yıl: {selected_year[0]} - {selected_year[1]}")
+    st.caption(f"🛡 Risk seviyesi: {selected_risk_level}")
+    st.caption(f"⭐ Top N: {top_n}")
+    st.caption(f"🚨 Sadece uyarılar: {'Evet' if only_alerts else 'Hayır'}")
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
     st.markdown("### ➕ Yeni Kayıt")
@@ -752,6 +1133,7 @@ with left_col:
                 st.error(f"Kayıt eklenemedi: {e}")
 
     st.markdown("</div></div>", unsafe_allow_html=True)
+
 
 # =========================================================
 # FİLTRELEME
@@ -792,6 +1174,7 @@ if filtered_df.empty:
         st.warning("Seçilen filtrelere ait veri bulunamadı.")
     st.stop()
 
+
 # =========================================================
 # HESAPLAMALAR
 # =========================================================
@@ -801,6 +1184,7 @@ avg_sea = round(filtered_df[COL_SEA].mean(), 2)
 avg_events = int(round(filtered_df[COL_EVENTS].mean(), 0))
 avg_risk = round(filtered_df[COL_RISK].mean(), 1)
 avg_pressure = round(filtered_df["climate_pressure_score"].mean(), 1)
+
 alert_count = int((filtered_df["dynamic_alert"] == "Yüksek Karbon Emisyonu Uyarısı").sum())
 pressure_alert_count = int((filtered_df["pressure_alert"] != "Normal").sum())
 
@@ -870,7 +1254,6 @@ detail_yearly = (
 
 most_risky_country = top_country.iloc[0][COL_COUNTRY] if len(top_country) > 0 else "-"
 most_risky_score = round(top_country.iloc[0][COL_RISK], 1) if len(top_country) > 0 else 0
-max_co2_value = round(filtered_df[COL_CO2].max(), 3) if not filtered_df.empty else 0
 
 bubble_df = (
     filtered_df.groupby(COL_COUNTRY, as_index=False)
@@ -882,6 +1265,7 @@ bubble_df = (
     })
     .sort_values(COL_RISK, ascending=False)
 )
+
 
 # =========================================================
 # ALERT
@@ -915,7 +1299,7 @@ if pressure_alert_count > 0 and show_alert:
         f"""
         <div class="alert-floating">
             <div class="alert-top">
-                <div class="alert-title">Kritik İklim Uyarısı</div>
+                <div class="alert-title">🚨 Kritik İklim Uyarısı</div>
                 <div class="alert-pill">Yüksek Öncelik</div>
             </div>
             <div class="alert-text">
@@ -927,6 +1311,7 @@ if pressure_alert_count > 0 and show_alert:
         unsafe_allow_html=True,
     )
 
+
 # =========================================================
 # SAĞ PANEL
 # =========================================================
@@ -934,39 +1319,37 @@ with right_col:
     st.markdown(
         """
         <div class="hero">
-            <div class="hero-badge">🌍 İklim Zekâsı • Gerçek Zamanlı Çevresel Sinyaller</div>
+            <div class="hero-badge">🌍 İklim Zekâsı • Gerçek Zamanlı Sinyaller</div>
             <div class="hero-title">İKLİM RİSK<br>GÖSTERGE PANELİ</div>
             <div class="hero-text">
-                İklim riski, biyoçeşitlilik baskısı, okyanus stresi ve karbon dinamiklerini
-                tek ekranda izleyebileceğiniz karar destek arayüzü.
+                İklim riski, karbon baskısı, okyanus stresi ve çevresel sinyalleri
+                renkli, premium ve karar destek odaklı tek bir ekranda izleyin.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    section_header("Canlı İklim Göstergeleri", "Seçili filtrelere göre güncellenen temel çevresel sinyaller")
     k1, k2, k3, k4, k5, k6 = st.columns(6, gap="small")
     with k1:
-        metric_kpi("🌡 Ortalama Sıcaklık", f"{avg_temp}", "İklim ısı eğilimi", KPI_TEMP)
+        metric_kpi("🌡", "Ortalama Sıcaklık", fmt_num(avg_temp, 2), "°C", "İklim ısı eğilimi", "linear-gradient(135deg,#ff7a00,#ff0054)", KPI_TEMP)
     with k2:
-        metric_kpi("🏭 Ortalama CO₂", f"{avg_co2}", "Karbon baskısı", KPI_CO2)
+        metric_kpi("🏭", "Ortalama CO₂", fmt_num(avg_co2, 3), "", "Karbon baskısı", "linear-gradient(135deg,#00d4ff,#2563eb)", KPI_CO2)
     with k3:
-        metric_kpi("🌊 Deniz Seviyesi", f"{avg_sea}", "Okyanus yükselişi", KPI_SEA)
+        metric_kpi("🌊", "Deniz Seviyesi", fmt_num(avg_sea, 2), "mm", "Okyanus yükselişi", "linear-gradient(135deg,#06b6d4,#14b8a6)", KPI_SEA)
     with k4:
-        metric_kpi("🌩 Aşırı Hava Olayı", f"{avg_events}", "İklim olay sıklığı", KPI_WEATHER)
+        metric_kpi("☔", "Aşırı Olay Sayısı", str(avg_events), "", "İklim olay sıklığı", "linear-gradient(135deg,#8b5cf6,#6366f1)", KPI_WEATHER)
     with k5:
-        metric_kpi("📊 Risk Skoru", f"{avg_risk}", "Küresel risk endeksi", KPI_RISK)
+        metric_kpi("🛡", "İklim Risk Skoru", fmt_num(avg_risk, 1), "", "Küresel risk endeksi", "linear-gradient(135deg,#ff4d6d,#ef4444)", KPI_RISK)
     with k6:
-        metric_kpi("🌍 İklim Baskı Skoru", f"{avg_pressure}", "Normalize edilmiş birleşik skor", KPI_BIO)
+        metric_kpi("🌱", "İklim Baskı Skoru", fmt_num(avg_pressure, 1), "", "Birleşik skor", "linear-gradient(135deg,#22c55e,#84cc16)", KPI_BIO)
 
-    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
-    section_header("Küresel Risk Görünümü", "Harita, yönetici özeti ve seçili ülke bazlı risk değerlendirmesi")
-    map_col, info_col = st.columns([1.8, 1.0], gap="large")
+    left_main, right_side = st.columns([2.15, 1.55], gap="large")
 
-    with map_col:
-        chart_title("Küresel İklim Baskı Haritası", "Normalize edilmiş çevresel baskı skoruna göre görünüm")
+    with left_main:
+        chart_title("Küresel İklim Baskı Haritası", "Normalize edilmiş çevresel baskı skoruna göre dünya görünümü")
 
         map_df = country_risk_map.copy().sort_values("climate_pressure_score", ascending=False)
         top_map_points = map_df.head(5).copy()
@@ -985,18 +1368,17 @@ with right_col:
                 COL_EVENTS: ':.0f'
             },
             color_continuous_scale=[
-                [0.00, "#d8f3dc"],
-                [0.20, "#95d5b2"],
-                [0.40, "#52b788"],
-                [0.60, "#ffd166"],
-                [0.78, "#f8961e"],
-                [1.00, "#d62828"],
+                [0.00, "#20c997"],
+                [0.25, "#a7f3d0"],
+                [0.45, "#facc15"],
+                [0.65, "#fb923c"],
+                [1.00, "#ef4444"],
             ],
         )
 
         fig_map.update_traces(
-            marker_line_color="rgba(255,255,255,0.88)",
-            marker_line_width=1.2,
+            marker_line_color="rgba(255,255,255,0.90)",
+            marker_line_width=1.1,
             hovertemplate="""
             <b>%{hovertext}</b><br>
             İklim Baskı Skoru: %{z:.1f}<br>
@@ -1016,138 +1398,193 @@ with right_col:
                 mode="markers+text",
                 textposition="top center",
                 marker=dict(
-                    size=10,
-                    color="#10203a",
-                    line=dict(width=2, color="white"),
-                    opacity=0.95,
+                    size=11,
+                    color="#2563eb",
+                    line=dict(width=3, color="white"),
+                    opacity=0.98,
                 ),
-                textfont=dict(
-                    size=10,
-                    color="#10203a",
-                    family="Inter, Segoe UI, sans-serif"
-                ),
+                textfont=dict(size=10, color="#0f1d3a", family="Inter, Segoe UI, sans-serif"),
                 hoverinfo="skip",
                 showlegend=False,
             )
         )
 
         fig_map.update_layout(
-            height=540,
+            height=390,
             margin=dict(l=0, r=0, t=0, b=0),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#10203a", family="Inter, Segoe UI, sans-serif"),
+            font=dict(color="#0f1d3a", family="Inter, Segoe UI, sans-serif"),
             coloraxis_colorbar=dict(
-                title=dict(text="Baskı", font=dict(color="#10203a")),
+                title=dict(text="Baskı Skoru", font=dict(color="#0f1d3a", size=12)),
                 thickness=16,
                 len=0.72,
                 outlinewidth=0,
-                tickfont=dict(color="#475569"),
+                tickfont=dict(color="#475569", size=11),
             ),
             geo=dict(
                 projection_type="natural earth",
                 showframe=False,
                 showcoastlines=True,
-                coastlinecolor="rgba(100,116,139,0.55)",
-                coastlinewidth=1.0,
+                coastlinecolor="rgba(100,116,139,0.32)",
+                coastlinewidth=0.8,
                 showcountries=True,
-                countrycolor="rgba(148,163,184,0.55)",
-                countrywidth=0.7,
+                countrycolor="rgba(148,163,184,0.38)",
+                countrywidth=0.6,
                 showland=True,
-                landcolor="rgba(250,252,253,0.96)",
+                landcolor="rgba(239,248,242,0.78)",
                 showocean=True,
-                oceancolor="rgba(226,238,248,0.88)",
+                oceancolor="rgba(226,242,253,0.54)",
                 showlakes=True,
-                lakecolor="rgba(226,238,248,0.88)",
+                lakecolor="rgba(226,242,253,0.54)",
                 bgcolor="rgba(0,0,0,0)",
             ),
-            hoverlabel=dict(
-                bgcolor="white",
-                bordercolor="rgba(15,23,42,0.08)",
-                font=dict(color="#10203a", size=13),
-            ),
         )
-
         st.plotly_chart(fig_map, use_container_width=True)
 
-    with info_col:
-        info_panel(
-            "Yönetici Özeti",
-            most_risky_country,
-            [
-                f"Geçerli filtrelerde {most_risky_country} en dikkat çeken ülke olarak öne çıkıyor.",
-                f"Ortalama risk skoru {most_risky_score} ve baskı sinyali {pressure_alert_count}.",
-            ],
-            risk_etiketi(most_risky_score),
-            risk_rengi(most_risky_score),
-        )
+        top5 = country_risk_bar.head(5).copy()
+        if len(top5) > 0:
+            top5_cols = st.columns(5, gap="small")
+            medal_colors = ["#2563eb", "#f97316", "#22c55e", "#06b6d4", "#8b5cf6"]
+            for i, (_, row) in enumerate(top5.iterrows()):
+                with top5_cols[i]:
+                    st.markdown(
+                        f"""
+                        <div class="insight-item" style="padding:.62rem;align-items:center;">
+                            <div class="insight-icon" style="width:32px;height:32px;border-radius:999px;background:{medal_colors[i]};">{i+1}</div>
+                            <div>
+                                <div class="insight-title">{row[COL_COUNTRY]}</div>
+                                <div class="insight-text">{row[selected_sort_col]:.1f}</div>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-        st.markdown("<div style='height:.45rem'></div>", unsafe_allow_html=True)
+    with right_side:
+        alert_card = st.container()
+        with alert_card:
+            st.markdown(
+                f"""
+                <div class="info-panel" style="background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(255,236,236,.72));">
+                    <div class="info-eyebrow" style="color:#b42318;">🚨 Kritik İklim Uyarısı</div>
+                    <div class="info-line" style="color:#8b2b2b;font-size:.95rem;">
+                        Filtrelenen sonuçlarda <b>{pressure_alert_count}</b> çevresel baskı sinyali ve
+                        <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.
+                    </div>
+                    <div class="info-badge" style="background:linear-gradient(135deg,#ef4444,#f97316);">Yüksek Öncelik</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        info_panel(
-            "Seçili Ülke",
-            detail_country,
-            [
-                f"Ortalama sıcaklık: {detail_avg_temp}°C",
-                f"CO₂ emisyonu: {detail_avg_co2}",
-                f"Risk skoru: {detail_avg_risk}",
-                f"İklim baskı skoru: {detail_avg_pressure}",
-                f"Uyarı sayısı: {detail_alerts}",
-            ],
-            risk_etiketi(detail_avg_risk),
-            risk_rengi(detail_avg_risk),
-        )
+        s1, s2 = st.columns(2, gap="small")
+        with s1:
+            info_panel(
+                "Yönetici Özeti",
+                most_risky_country,
+                [
+                    f"Geçerli filtrelerde {most_risky_country} öne çıkıyor.",
+                    f"Ortalama risk skoru {most_risky_score}.",
+                ],
+                risk_etiketi(most_risky_score),
+                risk_rengi(most_risky_score),
+            )
+        with s2:
+            info_panel(
+                "Seçili Ülke",
+                detail_country,
+                [
+                    f"Sıcaklık: {detail_avg_temp}°C",
+                    f"CO₂: {detail_avg_co2}",
+                    f"Risk: {detail_avg_risk}",
+                    f"Baskı: {detail_avg_pressure}",
+                    f"Uyarı: {detail_alerts}",
+                ],
+                risk_etiketi(detail_avg_risk),
+                risk_rengi(detail_avg_risk),
+            )
 
-        st.markdown("<div style='height:.45rem'></div>", unsafe_allow_html=True)
-
+        st.markdown('<div class="risk-gauge-shell">', unsafe_allow_html=True)
+        chart_title("İklim Baskı Ölçeri", "Seçili ülkenin birleşik çevresel baskı seviyesi")
         gauge = go.Figure(
             go.Indicator(
                 mode="gauge+number",
                 value=detail_avg_pressure,
-                number={"font": {"size": 34}},
-                title={"text": "İklim Baskı Ölçeri", "font": {"size": 18}},
+                number={"font": {"size": 42, "color": "#0f766e"}, "suffix": ""},
                 gauge={
-                    "axis": {"range": [0, 100], "tickwidth": 1},
-                    "bar": {"color": "#ef4444", "thickness": 0.28},
+                    "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748b"},
+                    "bar": {"color": "#2563eb", "thickness": 0.22},
+                    "bgcolor": "rgba(255,255,255,0)",
+                    "borderwidth": 0,
                     "steps": [
                         {"range": [0, 25], "color": "#22c55e"},
-                        {"range": [25, 50], "color": "#eab308"},
+                        {"range": [25, 50], "color": "#facc15"},
                         {"range": [50, 75], "color": "#fb923c"},
                         {"range": [75, 100], "color": "#ef4444"},
                     ],
+                    "threshold": {
+                        "line": {"color": "#0f1d3a", "width": 4},
+                        "thickness": 0.82,
+                        "value": detail_avg_pressure,
+                    },
                 },
             )
         )
         gauge.update_layout(
-            height=270,
-            margin=dict(l=10, r=10, t=28, b=0),
+            height=250,
+            margin=dict(l=0, r=0, t=0, b=0),
             paper_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#10203a"},
+            font={"color": "#0f1d3a"},
         )
         st.plotly_chart(gauge, use_container_width=True)
+        insight_item("📈", "Yön", "Çevresel baskı trendi seçili aralıkta izleniyor.", "linear-gradient(135deg,#22c55e,#14b8a6)")
+        insight_item("⚡", "Durum", f"Ortalama baskı skoru {detail_avg_pressure} seviyesinde.", "linear-gradient(135deg,#f97316,#ef4444)")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
-    section_header("Trend Analitiği", "Zamana bağlı risk, karbon ve ülke karşılaştırmaları")
-    row1_col1, row1_col2 = st.columns(2, gap="large")
-
-    with row1_col1:
-        chart_title("Risk Skoru Trend Grafiği", "Seçili ülkenin yıllara göre ortalama risk değişimi")
+    c1, c2, c3, c4 = st.columns(4, gap="small")
+    with c1:
+        chart_title("Risk Skoru Trend Grafiği", "Seçili ülkenin yıllara göre değişimi")
         fig_risk_trend = px.line(detail_yearly, x=COL_YEAR, y=COL_RISK, markers=True)
-        fig_risk_trend.update_traces(line=dict(width=3.5, color="#f97316"), marker=dict(size=7))
-        apply_chart_style(fig_risk_trend, height=340)
-        fig_risk_trend.update_layout(xaxis_title="Yıl", yaxis_title="Risk")
+        fig_risk_trend.update_traces(line=dict(width=3.6, color="#ff006e"), marker=dict(size=8, color="#ef4444"))
+        apply_chart_style(fig_risk_trend, height=230)
+        fig_risk_trend.update_layout(xaxis_title="", yaxis_title="")
         st.plotly_chart(fig_risk_trend, use_container_width=True)
 
-    with row1_col2:
-        chart_title("CO₂ Trend Grafiği", "Karbon emisyon yoğunluğunun yıllık hareketi")
+    with c2:
+        chart_title("CO₂ Trend Grafiği", "Karbon emisyon yoğunluğu")
         fig_co2_trend = px.area(detail_yearly, x=COL_YEAR, y=COL_CO2)
-        fig_co2_trend.update_traces(line=dict(width=3, color="#0ea5e9"))
-        apply_chart_style(fig_co2_trend, height=340)
-        fig_co2_trend.update_layout(xaxis_title="Yıl", yaxis_title="CO₂")
+        fig_co2_trend.update_traces(line=dict(width=3.2, color="#00b4d8"), fillcolor="rgba(0,180,216,0.34)")
+        apply_chart_style(fig_co2_trend, height=230)
+        fig_co2_trend.update_layout(xaxis_title="", yaxis_title="")
         st.plotly_chart(fig_co2_trend, use_container_width=True)
 
-    row2_col1, row2_col2 = st.columns(2, gap="large")
+    with c3:
+        chart_title("Sıcaklık Trend Grafiği", "Ortalama sıcaklık değişimi")
+        fig_temp = px.line(detail_yearly, x=COL_YEAR, y=COL_TEMP, markers=True)
+        fig_temp.update_traces(line=dict(width=3.4, color="#ff0054"), marker=dict(size=8, color="#ff7a00"))
+        apply_chart_style(fig_temp, height=230)
+        fig_temp.update_layout(xaxis_title="", yaxis_title="")
+        st.plotly_chart(fig_temp, use_container_width=True)
+
+    with c4:
+        chart_title("Aşırı Olay Trend Grafiği", "Yıllara göre olay sıklığı")
+        fig_events = px.bar(
+            detail_yearly,
+            x=COL_YEAR,
+            y=COL_EVENTS,
+            color=COL_EVENTS,
+            color_continuous_scale=["#38bdf8", "#8b5cf6", "#f97316", "#ef4444"],
+        )
+        apply_chart_style(fig_events, height=230)
+        fig_events.update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False)
+        st.plotly_chart(fig_events, use_container_width=True)
+
+    st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
+
+    row2_col1, row2_col2, row2_col3 = st.columns([1.05, 1.05, 1.0], gap="large")
 
     with row2_col1:
         chart_title(f"Ülke Karşılaştırması (İlk {top_n})", f"Sıralama ölçütü: {selected_sort_label}")
@@ -1158,15 +1595,23 @@ with right_col:
             y=COL_COUNTRY,
             orientation="h",
             color=selected_sort_col,
-            color_continuous_scale="Plasma",
+            color_continuous_scale=["#14b8a6", "#22c55e", "#facc15", "#fb923c", "#ef4444"],
         )
         fig_bar.update_yaxes(categoryorder="total ascending")
-        apply_chart_style(fig_bar, height=350)
-        fig_bar.update_layout(xaxis_title=selected_sort_label, yaxis_title="Ülke")
+        apply_chart_style(fig_bar, height=300)
+        fig_bar.update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False)
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with row2_col2:
-        chart_title("CO₂ ve Risk İlişkisi", "Emisyon, risk ve olay yoğunluğu arasındaki dağılım ilişkisi")
+        chart_title("İklim Baskı Skoru Trendi", "Birleşik skorun yıllık hareketi")
+        fig_pressure_trend = px.area(detail_yearly, x=COL_YEAR, y="climate_pressure_score")
+        fig_pressure_trend.update_traces(line=dict(width=3.5, color="#00a896"), fillcolor="rgba(34,197,94,0.28)")
+        apply_chart_style(fig_pressure_trend, height=300)
+        fig_pressure_trend.update_layout(xaxis_title="", yaxis_title="")
+        st.plotly_chart(fig_pressure_trend, use_container_width=True)
+
+    with row2_col3:
+        chart_title("CO₂ ve Risk İlişkisi", "Emisyon, risk ve olay yoğunluğu")
         fig_scatter = px.scatter(
             bubble_df,
             x=COL_CO2,
@@ -1174,83 +1619,27 @@ with right_col:
             size=COL_EVENTS,
             color="climate_pressure_score",
             hover_name=COL_COUNTRY,
-            color_continuous_scale="Sunsetdark",
+            color_continuous_scale=["#14b8a6", "#22c55e", "#facc15", "#fb923c", "#ef4444"],
             size_max=42,
         )
-        apply_chart_style(fig_scatter, height=350)
+        apply_chart_style(fig_scatter, height=300)
         fig_scatter.update_layout(xaxis_title="Ortalama CO₂", yaxis_title="Ortalama Risk")
         st.plotly_chart(fig_scatter, use_container_width=True)
 
-    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
-    section_header("İklim Olay Analitiği", "Sıcaklık ve aşırı hava olayları için ek görünüm")
-    row3_col1, row3_col2 = st.columns(2, gap="large")
-
-    with row3_col1:
-        chart_title("Sıcaklık Trend Grafiği", "Seçili ülkenin ortalama sıcaklık değişimi")
-        fig_temp = px.line(detail_yearly, x=COL_YEAR, y=COL_TEMP, markers=True)
-        fig_temp.update_traces(line=dict(width=3.2, color="#ef4444"), marker=dict(size=7))
-        apply_chart_style(fig_temp, height=320)
-        fig_temp.update_layout(xaxis_title="Yıl", yaxis_title="Sıcaklık")
-        st.plotly_chart(fig_temp, use_container_width=True)
-
-    with row3_col2:
-        chart_title("Aşırı Hava Olayları Trend Grafiği", "Yıllara göre iklim olay sıklığındaki hareket")
-        fig_events = px.bar(
-            detail_yearly,
-            x=COL_YEAR,
-            y=COL_EVENTS,
-            color=COL_EVENTS,
-            color_continuous_scale="Bluered",
-        )
-        apply_chart_style(fig_events, height=320)
-        fig_events.update_layout(
-            xaxis_title="Yıl",
-            yaxis_title="Olay Sayısı",
-            coloraxis_showscale=False,
-        )
-        st.plotly_chart(fig_events, use_container_width=True)
-
-    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
-
-    section_header("Akıllı Skor Analitiği", "Normalize edilmiş çevresel baskı skorunun dağılımı ve zaman içi hareketi")
-    row4_col1, row4_col2 = st.columns(2, gap="large")
-
-    with row4_col1:
-        chart_title("İklim Baskı Skoru Trend Grafiği", "Seçili ülke için normalize edilmiş birleşik skorun yıllık hareketi")
-        fig_pressure_trend = px.line(detail_yearly, x=COL_YEAR, y="climate_pressure_score", markers=True)
-        fig_pressure_trend.update_traces(line=dict(width=3.5, color="#0f766e"), marker=dict(size=7))
-        apply_chart_style(fig_pressure_trend, height=320)
-        fig_pressure_trend.update_layout(xaxis_title="Yıl", yaxis_title="İklim Baskı Skoru")
-        st.plotly_chart(fig_pressure_trend, use_container_width=True)
-
-    with row4_col2:
-        chart_title("İklim Baskı Skoru Dağılımı", "Filtrelenmiş veri içindeki baskı skorlarının genel dağılımı")
-        fig_pressure = px.histogram(
-            filtered_df,
-            x="climate_pressure_score",
-            nbins=30,
-            color_discrete_sequence=["#0ea5e9"]
-        )
-        apply_chart_style(fig_pressure, height=320)
-        fig_pressure.update_layout(xaxis_title="İklim Baskı Skoru", yaxis_title="Frekans")
-        st.plotly_chart(fig_pressure, use_container_width=True)
-
-    st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
-
-    section_header("Uyarı Merkezi", "Yüksek karbon emisyonu sinyali taşıyan kayıtlar")
-    chart_title("Karbon Emisyonu Uyarıları", "Filtrelenmiş veri içinde eşik değeri aşan kayıtların özet görünümü")
+    section_header("Karbon Emisyonu Uyarıları", "Eşik değeri aşan kritik kayıtların özet görünümü")
 
     if len(alerts) > 0:
         alert_table = alerts[
             [COL_COUNTRY, COL_YEAR, COL_CO2, COL_RISK, "climate_pressure_score", "dynamic_alert", "pressure_alert"]
-        ].head(15).rename(
+        ].head(12).rename(
             columns={
                 COL_COUNTRY: "Ülke",
                 COL_YEAR: "Yıl",
                 COL_CO2: "CO₂ Emisyonu",
                 COL_RISK: "Risk Skoru",
-                "climate_pressure_score": "İklim Baskı Skoru",
+                "climate_pressure_score": "İklim Baskı",
                 "dynamic_alert": "CO₂ Uyarısı",
                 "pressure_alert": "Baskı Durumu",
             }
@@ -1259,7 +1648,7 @@ with right_col:
 
         csv = alert_table.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            "📥 Uyarıları CSV Olarak İndir",
+            "📥 CSV İndir",
             data=csv,
             file_name="climate_alerts.csv",
             mime="text/csv",
