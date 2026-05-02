@@ -7,6 +7,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+try:
+    import joblib
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.metrics import mean_absolute_error, r2_score
+    from sklearn.model_selection import train_test_split
+
+    ML_AVAILABLE = True
+except Exception:
+    ML_AVAILABLE = False
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR / "src"))
 
@@ -19,6 +29,7 @@ st.set_page_config(
 )
 
 ASSETS_DIR = BASE_DIR / "assets"
+MODEL_PATH = BASE_DIR / "src" / "trained_climate_risk_model.joblib"
 
 
 # =========================================================
@@ -186,6 +197,81 @@ def minmax_normalize(series: pd.Series) -> pd.Series:
     return (series - min_val) / (max_val - min_val)
 
 
+def train_or_load_ml_model(data: pd.DataFrame, feature_cols: list[str], target_col: str):
+    """Dashboard içinde API kullanmadan ML risk tahmini için modeli hazırlar."""
+    if not ML_AVAILABLE:
+        return None, {"error": "scikit-learn veya joblib kurulu değil."}
+
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if MODEL_PATH.exists():
+        try:
+            model_data = joblib.load(MODEL_PATH)
+            if model_data.get("features") == feature_cols:
+                return model_data, model_data.get("metrics", {})
+        except Exception:
+            pass
+
+    model_df = data[feature_cols + [target_col]].copy()
+    for col in feature_cols + [target_col]:
+        model_df[col] = pd.to_numeric(model_df[col], errors="coerce")
+
+    model_df = model_df.dropna(subset=feature_cols + [target_col])
+
+    if len(model_df) < 5:
+        return None, {"error": "ML modeli eğitmek için en az 5 temiz gözlem gerekli."}
+
+    X = model_df[feature_cols]
+    y = model_df[target_col]
+
+    model = RandomForestRegressor(
+        n_estimators=250,
+        max_depth=8,
+        random_state=42,
+        min_samples_leaf=2,
+    )
+
+    metrics = {"train_rows": int(len(model_df))}
+
+    if len(model_df) >= 10:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        metrics.update(
+            {
+                "mae": round(float(mean_absolute_error(y_test, preds)), 3),
+                "r2": round(float(r2_score(y_test, preds)), 3),
+                "test_rows": int(len(X_test)),
+            }
+        )
+    else:
+        model.fit(X, y)
+        metrics.update({"mae": None, "r2": None, "test_rows": 0})
+
+    model_data = {"model": model, "features": feature_cols, "metrics": metrics}
+    joblib.dump(model_data, MODEL_PATH)
+    return model_data, metrics
+
+
+def predict_ml_risk(model_data: dict, temp: float, co2: float, sea: float, events: float) -> float:
+    X_new = pd.DataFrame(
+        [
+            {
+                "avg_temperature": temp,
+                "co2_emissions": co2,
+                "sea_level_rise": sea,
+                "extreme_weather_events": events,
+            }
+        ]
+    )
+
+    X_new = X_new[model_data["features"]]
+    pred = float(model_data["model"].predict(X_new)[0])
+    return round(max(0, min(100, pred)), 2)
+
+
 # =========================================================
 # GÖRSELLER — SENİN RESİM YOLLARIN KORUNDU
 # =========================================================
@@ -255,6 +341,25 @@ df["pressure_alert"] = df["climate_pressure_score"].apply(
               "Yüksek Baskı" if x > 50 else
               "Normal"
 )
+
+# ML tarafında kolon adları standartlaştırılıyor.
+ml_df = df.rename(
+    columns={
+        COL_TEMP: "avg_temperature",
+        COL_CO2: "co2_emissions",
+        COL_SEA: "sea_level_rise",
+        COL_EVENTS: "extreme_weather_events",
+        COL_RISK: "climate_risk_score",
+    }
+).copy()
+
+ML_FEATURES = [
+    "avg_temperature",
+    "co2_emissions",
+    "sea_level_rise",
+    "extreme_weather_events",
+]
+ML_TARGET = "climate_risk_score"
 
 
 # =========================================================
@@ -896,7 +1001,7 @@ section[data-testid="stSidebar"] {{
 /* =========================================================
    FINAL OVERRIDE — RENGARENK + GRAFİK/BACKGROUND BÜTÜN + KPI RESİMLERİ KORUNDU
    ========================================================= */
-.stApp {
+.stApp {{
     background:
         radial-gradient(circle at 7% 8%, rgba(0,212,255,0.34), transparent 28%),
         radial-gradient(circle at 88% 10%, rgba(34,197,94,0.28), transparent 30%),
@@ -904,19 +1009,19 @@ section[data-testid="stSidebar"] {{
         radial-gradient(circle at 28% 88%, rgba(168,85,247,0.24), transparent 36%),
         radial-gradient(circle at 48% 44%, rgba(236,72,153,0.10), transparent 32%),
         linear-gradient(135deg, #ddf7ff 0%, #f0fff4 38%, #fff1df 72%, #f7edff 100%) !important;
-}
+}}
 
-.kpi-glass { display: none !important; }
+.kpi-glass {{ display: none !important; }}
 
-.kpi-dark {
+.kpi-dark {{
     position: absolute;
     inset: 0;
     background:
         linear-gradient(90deg, rgba(5,10,22,0.74), rgba(5,10,22,0.30)),
         linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.32));
-}
+}}
 
-.kpi-rainbow {
+.kpi-rainbow {{
     position: absolute;
     inset: 0;
     opacity: .28;
@@ -925,14 +1030,14 @@ section[data-testid="stSidebar"] {{
         radial-gradient(circle at 82% 20%, rgba(34,197,94,0.48), transparent 30%),
         radial-gradient(circle at 76% 88%, rgba(249,115,22,0.46), transparent 32%),
         radial-gradient(circle at 20% 88%, rgba(168,85,247,0.44), transparent 32%);
-}
+}}
 
-.kpi-title { color: rgba(255,255,255,0.96) !important; }
-.kpi-value { color: #fff !important; text-shadow: 0 10px 22px rgba(0,0,0,0.24) !important; }
-.kpi-value span { color: rgba(255,255,255,0.88) !important; }
-.kpi-subtitle { color: rgba(255,255,255,0.86) !important; }
+.kpi-title {{ color: rgba(255,255,255,0.96) !important; }}
+.kpi-value {{ color: #fff !important; text-shadow: 0 10px 22px rgba(0,0,0,0.24) !important; }}
+.kpi-value span {{ color: rgba(255,255,255,0.88) !important; }}
+.kpi-subtitle {{ color: rgba(255,255,255,0.86) !important; }}
 
-[data-testid="stPlotlyChart"] {
+[data-testid="stPlotlyChart"] {{
     background:
         radial-gradient(circle at 10% 12%, rgba(0,212,255,0.20), transparent 34%),
         radial-gradient(circle at 88% 18%, rgba(34,197,94,0.18), transparent 34%),
@@ -949,17 +1054,17 @@ section[data-testid="stSidebar"] {{
         inset 0 1px 0 rgba(255,255,255,0.58) !important;
     padding: .55rem !important;
     margin-bottom: .18rem !important;
-}
+}}
 
 [data-testid="stPlotlyChart"] svg,
-[data-testid="stPlotlyChart"] > div {
+[data-testid="stPlotlyChart"] > div {{
     background: transparent !important;
-}
+}}
 
 .control-panel,
 .info-panel,
 .risk-gauge-shell,
-[data-testid="stDataFrame"] {
+[data-testid="stDataFrame"] {{
     background:
         radial-gradient(circle at 12% 10%, rgba(0,212,255,0.14), transparent 32%),
         radial-gradient(circle at 86% 16%, rgba(34,197,94,0.13), transparent 32%),
@@ -967,15 +1072,15 @@ section[data-testid="stSidebar"] {{
     backdrop-filter: blur(28px) saturate(1.25) !important;
     -webkit-backdrop-filter: blur(28px) saturate(1.25) !important;
     border: 1px solid rgba(255,255,255,0.52) !important;
-}
+}}
 
-.kpi-card {
+.kpi-card {{
     box-shadow:
         0 18px 46px rgba(0,212,255,0.14),
         0 12px 32px rgba(34,197,94,0.10),
         0 8px 24px rgba(249,115,22,0.08),
         inset 0 1px 0 rgba(255,255,255,0.65) !important;
-}
+}}
 
 </style>
 """,
@@ -1625,6 +1730,62 @@ with right_col:
         apply_chart_style(fig_scatter, height=300)
         fig_scatter.update_layout(xaxis_title="Ortalama CO₂", yaxis_title="Ortalama Risk")
         st.plotly_chart(fig_scatter, use_container_width=True)
+
+    st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
+
+    section_header("ML Tabanlı Risk Tahmini", "Girilen çevresel değerlere göre makine öğrenmesi ile tahmini iklim risk skoru üretir")
+
+    model_data, model_metrics = train_or_load_ml_model(ml_df, ML_FEATURES, ML_TARGET)
+
+    if model_data is None:
+        st.warning(f"ML modeli hazırlanamadı: {model_metrics.get('error', 'Bilinmeyen hata')}")
+        st.caption("Gerekirse terminalde şunu çalıştır: pip install scikit-learn joblib")
+    else:
+        ml_col1, ml_col2 = st.columns([1.25, 1.0], gap="large")
+
+        with ml_col1:
+            with st.form("ml_prediction_form"):
+                p1, p2 = st.columns(2)
+                with p1:
+                    ml_temp = st.number_input("Ortalama Sıcaklık", value=float(avg_temp), step=0.01, format="%.2f")
+                    ml_sea = st.number_input("Deniz Seviyesi Artışı", value=float(avg_sea), step=0.01, format="%.2f")
+                with p2:
+                    ml_co2 = st.number_input("CO₂ Emisyonu", value=float(avg_co2), step=0.01, format="%.3f")
+                    ml_events = st.number_input("Aşırı Hava Olayı", value=float(avg_events), step=1.0, format="%.0f")
+
+                predict_submit = st.form_submit_button("🤖 ML ile Risk Tahmini Yap")
+
+        with ml_col2:
+            metric_lines = [f"Eğitim gözlemi: {model_metrics.get('train_rows', '-')}"]
+            if model_metrics.get("mae") is not None:
+                metric_lines.append(f"MAE: {model_metrics.get('mae')}")
+                metric_lines.append(f"R²: {model_metrics.get('r2')}")
+            else:
+                metric_lines.append("Test metriği için veri sayısı sınırlı.")
+
+            info_panel(
+                "Model Durumu",
+                "Aktif",
+                metric_lines,
+                "Random Forest",
+                "linear-gradient(135deg,#2563eb,#00d4ff,#14b8a6)",
+            )
+
+        if predict_submit:
+            predicted_score = predict_ml_risk(model_data, ml_temp, ml_co2, ml_sea, ml_events)
+            predicted_label = risk_etiketi(predicted_score)
+
+            st.markdown(
+                f"""
+                <div class="info-panel" style="margin-top:.7rem;">
+                    <div class="info-eyebrow">🤖 Makine Öğrenmesi Tahmini</div>
+                    <div class="info-big">{predicted_score}</div>
+                    <div class="info-line">Girilen değerlere göre tahmini risk seviyesi: <b>{predicted_label}</b></div>
+                    <div class="info-badge" style="background:{risk_rengi(predicted_score)};">{predicted_label}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
