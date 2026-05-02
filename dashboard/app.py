@@ -880,207 +880,223 @@ section[data-testid="stSidebar"] {{
         inset 0 1px 0 rgba(255,255,255,0.95);
 }}
 
-.alert-floating {{
+.popup-backdrop {{
     position: fixed;
-    top: 14px;
-    right: 14px;
-    z-index: 9999;
-    width: 292px;
-    border-radius: 24px;
-    padding: .82rem .9rem;
-    background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,242,232,0.78));
-    backdrop-filter: blur(22px);
-    border: 1px solid rgba(255,255,255,0.80);
-    box-shadow:
-        0 26px 70px rgba(249,115,22,0.18),
-        inset 0 1px 0 rgba(255,255,255,0.92);
+    inset: 0;
+    z-index: 9998;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(0,212,255,0.18), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(249,115,22,0.16), transparent 30%),
+        radial-gradient(circle at 68% 88%, rgba(139,92,246,0.16), transparent 34%),
+        rgba(15, 23, 42, 0.22);
+    backdrop-filter: blur(12px) saturate(1.25);
+    -webkit-backdrop-filter: blur(12px) saturate(1.25);
 }}
 
-.alert-top {{
+.climate-popup {{
+    position: fixed;
+    top: 92px;
+    right: 32px;
+    width: 390px;
+    z-index: 9999;
+    border-radius: 32px;
+    padding: 1.35rem 1.35rem 1.2rem 1.35rem;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 8% 10%, rgba(255,255,255,0.92), transparent 28%),
+        radial-gradient(circle at 14% 18%, rgba(239,68,68,0.20), transparent 32%),
+        radial-gradient(circle at 92% 18%, rgba(249,115,22,0.20), transparent 34%),
+        radial-gradient(circle at 50% 100%, rgba(255,214,165,0.24), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.78), rgba(255,244,232,0.54));
+    border: 1px solid rgba(255,255,255,0.78);
+    box-shadow:
+        0 34px 95px rgba(239,68,68,0.24),
+        0 18px 54px rgba(15,23,42,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.92),
+        inset 0 -1px 0 rgba(255,255,255,0.36);
+    backdrop-filter: blur(30px) saturate(1.45);
+    -webkit-backdrop-filter: blur(30px) saturate(1.45);
+    animation: popupSlide .34s cubic-bezier(.2,.85,.25,1);
+}}
+
+.climate-popup::before {{
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(120deg, rgba(255,255,255,0.42), transparent 28%, transparent 64%, rgba(255,255,255,0.18)),
+        radial-gradient(circle at 100% 0%, rgba(255,255,255,0.52), transparent 22%);
+}}
+
+.climate-popup::after {{
+    content: "";
+    position: absolute;
+    left: 1.35rem;
+    right: 1.35rem;
+    top: 0;
+    height: 5px;
+    border-radius: 0 0 999px 999px;
+    background: linear-gradient(90deg, #ef4444, #f97316, #facc15, #22c55e, #06b6d4, #8b5cf6);
+    box-shadow: 0 12px 28px rgba(249,115,22,0.26);
+}}
+
+@keyframes popupSlide {{
+    from {{
+        opacity: 0;
+        transform: translateY(-18px) scale(.96);
+        filter: blur(4px);
+    }}
+    to {{
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }}
+}}
+
+.popup-close {{
+    position: absolute;
+    top: .82rem;
+    right: .86rem;
+    z-index: 3;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.78);
+    background: rgba(255,255,255,0.58);
+    color: #b42318;
+    font-size: 1.42rem;
+    font-weight: 950;
+    cursor: pointer;
+    line-height: 1;
+    box-shadow: 0 10px 24px rgba(239,68,68,0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+}}
+
+.popup-close:hover {{
+    transform: scale(1.06) rotate(4deg);
+    background: rgba(254,226,226,0.88);
+    box-shadow: 0 14px 30px rgba(239,68,68,0.20);
+}}
+
+.popup-icon {{
+    position: relative;
+    z-index: 2;
+    width: 56px;
+    height: 56px;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 28% 22%, rgba(255,255,255,0.48), transparent 30%),
+        linear-gradient(135deg,#ef4444,#f97316);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: .8rem;
-    margin-bottom: .35rem;
-}}
-
-.alert-title {{
-    font-size: .90rem;
-    font-weight: 950;
-    color: #b42318;
-}}
-
-.alert-pill {{
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
-    padding: .26rem .54rem;
-    border-radius: 999px;
-    background: linear-gradient(135deg, rgba(239,68,68,0.16), rgba(249,115,22,0.12));
-    color: #b42318;
-    font-size: .68rem;
+    font-size: 1.55rem;
+    margin-bottom: .85rem;
+    box-shadow:
+        0 18px 38px rgba(239,68,68,0.30),
+        inset 0 1px 0 rgba(255,255,255,0.34);
+}}
+
+.popup-title {{
+    position: relative;
+    z-index: 2;
+    font-size: 1.28rem;
     font-weight: 950;
+    color: #991b1b;
+    letter-spacing: -.25px;
+    margin-bottom: .48rem;
 }}
 
-.alert-text {{
-    font-size: .78rem;
-    line-height: 1.52;
-    color: #8b2b2b;
-    font-weight: 700;
+.popup-text {{
+    position: relative;
+    z-index: 2;
+    font-size: .94rem;
+    line-height: 1.62;
+    color: #7f1d1d;
+    font-weight: 780;
 }}
 
-[data-testid="stDataFrame"] {{
-    background: rgba(255,255,255,0.72) !important;
+.popup-filter-box {{
+    position: relative;
+    z-index: 2;
+    margin-top: .9rem;
+    padding: .78rem .85rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.54);
+    border: 1px solid rgba(255,255,255,0.64);
+    color: #334155;
+    font-size: .83rem;
+    line-height: 1.7;
+    font-weight: 760;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.72);
     backdrop-filter: blur(18px);
-    border-radius: 24px !important;
-    overflow: hidden !important;
-    border: 1px solid rgba(255,255,255,0.78) !important;
-    box-shadow:
-        0 22px 58px rgba(37,99,235,0.08),
-        inset 0 1px 0 rgba(255,255,255,0.85) !important;
+    -webkit-backdrop-filter: blur(18px);
 }}
 
-.stSelectbox label,
-.stSlider label,
-.stTextInput label,
-.stNumberInput label,
-.stCheckbox label {{
-    color: #0f1d3a !important;
-    font-weight: 850 !important;
-    font-size: .84rem !important;
-}}
-
-.stSelectbox div[data-baseweb="select"] > div,
-.stTextInput input,
-.stNumberInput input {{
-    background: rgba(255,255,255,0.68) !important;
-    border: 1px solid rgba(255,255,255,0.82) !important;
-    border-radius: 15px !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.80);
-}}
-
-.stSlider [data-baseweb="slider"] div[role="slider"] {{
-    background-color: #2563eb !important;
-    border-color: white !important;
-    box-shadow: 0 0 0 5px rgba(37,99,235,0.18) !important;
-}}
-
-.stDownloadButton button,
-.stFormSubmitButton button,
-.stButton button {{
-    background: linear-gradient(135deg, #2563eb, #00d4ff, #14b8a6) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 16px !important;
-    font-weight: 900 !important;
-    box-shadow:
-        0 14px 32px rgba(37,99,235,0.26),
-        inset 0 1px 0 rgba(255,255,255,0.28) !important;
-    transition: transform .18s ease, box-shadow .18s ease;
-}}
-
-.stDownloadButton button:hover,
-.stFormSubmitButton button:hover,
-.stButton button:hover {{
-    transform: translateY(-2px);
-    box-shadow:
-        0 20px 44px rgba(37,99,235,0.34),
-        inset 0 1px 0 rgba(255,255,255,0.32) !important;
-}}
-
-.element-container {{
-    margin-bottom: .28rem !important;
-}}
-
-.stMarkdown h3 {{
-    color: #0f1d3a !important;
-    font-weight: 950 !important;
-    letter-spacing: -.4px !important;
-}}
-
-/* =========================================================
-   FINAL OVERRIDE — RENGARENK + GRAFİK/BACKGROUND BÜTÜN + KPI RESİMLERİ KORUNDU
-   ========================================================= */
-.stApp {{
+.popup-badge {{
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    margin-top: .95rem;
+    padding: .52rem .94rem;
+    border-radius: 999px;
     background:
-        radial-gradient(circle at 7% 8%, rgba(0,212,255,0.34), transparent 28%),
-        radial-gradient(circle at 88% 10%, rgba(34,197,94,0.28), transparent 30%),
-        radial-gradient(circle at 78% 72%, rgba(255,122,0,0.22), transparent 30%),
-        radial-gradient(circle at 28% 88%, rgba(168,85,247,0.24), transparent 36%),
-        radial-gradient(circle at 48% 44%, rgba(236,72,153,0.10), transparent 32%),
-        linear-gradient(135deg, #ddf7ff 0%, #f0fff4 38%, #fff1df 72%, #f7edff 100%) !important;
+        radial-gradient(circle at 22% 20%, rgba(255,255,255,0.42), transparent 32%),
+        linear-gradient(135deg,#ef4444,#f97316);
+    color: white;
+    font-size: .77rem;
+    font-weight: 950;
+    box-shadow: 0 14px 30px rgba(239,68,68,0.26);
 }}
 
-.kpi-glass {{ display: none !important; }}
 
-.kpi-dark {{
-    position: absolute;
-    inset: 0;
+.ml-premium-card {{
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    padding: 1.25rem;
     background:
-        linear-gradient(90deg, rgba(5,10,22,0.74), rgba(5,10,22,0.30)),
-        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.32));
-}}
-
-.kpi-rainbow {{
-    position: absolute;
-    inset: 0;
-    opacity: .28;
-    background:
-        radial-gradient(circle at 16% 12%, rgba(0,212,255,0.55), transparent 28%),
-        radial-gradient(circle at 82% 20%, rgba(34,197,94,0.48), transparent 30%),
-        radial-gradient(circle at 76% 88%, rgba(249,115,22,0.46), transparent 32%),
-        radial-gradient(circle at 20% 88%, rgba(168,85,247,0.44), transparent 32%);
-}}
-
-.kpi-title {{ color: rgba(255,255,255,0.96) !important; }}
-.kpi-value {{ color: #fff !important; text-shadow: 0 10px 22px rgba(0,0,0,0.24) !important; }}
-.kpi-value span {{ color: rgba(255,255,255,0.88) !important; }}
-.kpi-subtitle {{ color: rgba(255,255,255,0.86) !important; }}
-
-[data-testid="stPlotlyChart"] {{
-    background:
-        radial-gradient(circle at 10% 12%, rgba(0,212,255,0.20), transparent 34%),
-        radial-gradient(circle at 88% 18%, rgba(34,197,94,0.18), transparent 34%),
-        radial-gradient(circle at 50% 100%, rgba(249,115,22,0.14), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,0.40), rgba(255,255,255,0.14)) !important;
-    backdrop-filter: blur(30px) saturate(1.38) !important;
-    -webkit-backdrop-filter: blur(30px) saturate(1.38) !important;
-    border: 1px solid rgba(255,255,255,0.48) !important;
-    border-radius: 30px !important;
+        radial-gradient(circle at 10% 10%, rgba(0,212,255,0.24), transparent 32%),
+        radial-gradient(circle at 88% 18%, rgba(139,92,246,0.22), transparent 34%),
+        radial-gradient(circle at 50% 100%, rgba(34,197,94,0.18), transparent 36%),
+        linear-gradient(135deg, rgba(255,255,255,0.56), rgba(255,255,255,0.24));
+    border: 1px solid rgba(255,255,255,0.62);
     box-shadow:
-        0 22px 64px rgba(0,212,255,0.12),
-        0 18px 50px rgba(34,197,94,0.09),
-        0 12px 34px rgba(249,115,22,0.07),
-        inset 0 1px 0 rgba(255,255,255,0.58) !important;
-    padding: .55rem !important;
-    margin-bottom: .18rem !important;
+        0 24px 70px rgba(37,99,235,0.14),
+        0 14px 40px rgba(139,92,246,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.72);
+    backdrop-filter: blur(26px) saturate(1.35);
 }}
 
-[data-testid="stPlotlyChart"] svg,
-[data-testid="stPlotlyChart"] > div {{
-    background: transparent !important;
+.ml-premium-title {{
+    font-size: 1.18rem;
+    font-weight: 950;
+    color: #0f1d3a;
+    letter-spacing: -.25px;
+    margin-bottom: .25rem;
 }}
 
-.control-panel,
-.info-panel,
-.risk-gauge-shell,
-[data-testid="stDataFrame"] {{
+.ml-premium-subtitle {{
+    font-size: .86rem;
+    color: #64748b;
+    font-weight: 720;
+    margin-bottom: .9rem;
+}}
+
+.ml-result-card {{
+    margin-top: .9rem;
+    border-radius: 22px;
+    padding: 1rem;
     background:
-        radial-gradient(circle at 12% 10%, rgba(0,212,255,0.14), transparent 32%),
-        radial-gradient(circle at 86% 16%, rgba(34,197,94,0.13), transparent 32%),
-        linear-gradient(145deg, rgba(255,255,255,0.50), rgba(255,255,255,0.22)) !important;
-    backdrop-filter: blur(28px) saturate(1.25) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(1.25) !important;
-    border: 1px solid rgba(255,255,255,0.52) !important;
+        radial-gradient(circle at 12% 12%, rgba(34,197,94,0.22), transparent 34%),
+        linear-gradient(135deg, rgba(255,255,255,0.70), rgba(240,253,244,0.52));
+    border: 1px solid rgba(255,255,255,0.76);
+    box-shadow: 0 16px 36px rgba(34,197,94,0.12);
 }}
 
-.kpi-card {{
-    box-shadow:
-        0 18px 46px rgba(0,212,255,0.14),
-        0 12px 32px rgba(34,197,94,0.10),
-        0 8px 24px rgba(249,115,22,0.08),
-        inset 0 1px 0 rgba(255,255,255,0.65) !important;
-}}
 
 </style>
 """,
@@ -1393,23 +1409,48 @@ filter_signature = (
     auto_focus_top_country
 )
 
-if "last_filter_signature" not in st.session_state:
-    st.session_state.last_filter_signature = None
+# İlk açılışta popup gösterme; sadece filtre değişince göster.
+if "alert_initialized" not in st.session_state:
+    st.session_state.alert_initialized = True
+    st.session_state.alert_open = False
+    st.session_state.last_filter_signature = filter_signature
 
 show_alert = st.session_state.last_filter_signature != filter_signature
+
+# Filtreler değiştikçe popup yeniden açılır.
+if show_alert and pressure_alert_count > 0:
+    st.session_state.alert_open = True
+
 st.session_state.last_filter_signature = filter_signature
 
-if pressure_alert_count > 0 and show_alert:
+if st.session_state.alert_open and pressure_alert_count > 0:
     st.markdown(
         f"""
-        <div class="alert-floating">
-            <div class="alert-top">
-                <div class="alert-title">🚨 Kritik İklim Uyarısı</div>
-                <div class="alert-pill">Yüksek Öncelik</div>
-            </div>
-            <div class="alert-text">
-                Filtrelenen sonuçlarda <strong>{pressure_alert_count}</strong> çevresel baskı sinyali ve
-                <strong>{alert_count}</strong> yüksek CO₂ uyarısı bulundu.
+        <div class="popup-backdrop" id="climate-popup-root">
+            <div class="climate-popup">
+                <button
+                    class="popup-close"
+                    type="button"
+                    aria-label="Uyarıyı kapat"
+                    onclick="document.getElementById('climate-popup-root').style.display='none';"
+                >×</button>
+
+                <div class="popup-icon">🚨</div>
+                <div class="popup-title">Kritik İklim Uyarısı</div>
+
+                <div class="popup-text">
+                    Seçtiğin filtrelere göre <b>{pressure_alert_count}</b> çevresel baskı sinyali ve
+                    <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.
+                </div>
+
+                <div class="popup-filter-box">
+                    🌍 Ülke: <b>{selected_country}</b><br>
+                    📅 Yıl: <b>{selected_year[0]} - {selected_year[1]}</b><br>
+                    🛡 Risk seviyesi: <b>{selected_risk_level}</b><br>
+                    🏭 CO₂ eşik değeri: <b>{threshold:.2f}</b>
+                </div>
+
+                <div class="popup-badge">Yüksek Öncelik</div>
             </div>
         </div>
         """,
@@ -1565,6 +1606,54 @@ with right_col:
                         """,
                         unsafe_allow_html=True,
                     )
+
+        # Boşluğu dolduran premium ek grafik: Risk yoğunluk matrisi
+        st.markdown("<div style='height:.55rem'></div>", unsafe_allow_html=True)
+        chart_title("Risk Yoğunluk Matrisi", "Ülke ve yıllara göre risk skorunun renkli dağılımı")
+
+        heatmap_source = (
+            filtered_df.groupby([COL_COUNTRY, COL_YEAR], as_index=False)[COL_RISK]
+            .mean()
+        )
+
+        heatmap_top_countries = (
+            filtered_df.groupby(COL_COUNTRY)[COL_RISK]
+            .mean()
+            .sort_values(ascending=False)
+            .head(min(top_n, 12))
+            .index
+        )
+
+        heatmap_source = heatmap_source[heatmap_source[COL_COUNTRY].isin(heatmap_top_countries)]
+        heatmap_pivot = heatmap_source.pivot(index=COL_COUNTRY, columns=COL_YEAR, values=COL_RISK)
+
+        if not heatmap_pivot.empty:
+            fig_heatmap = px.imshow(
+                heatmap_pivot,
+                aspect="auto",
+                color_continuous_scale=[
+                    [0.00, "#14b8a6"],
+                    [0.35, "#22c55e"],
+                    [0.55, "#facc15"],
+                    [0.75, "#fb923c"],
+                    [1.00, "#ef4444"],
+                ],
+                labels=dict(x="Yıl", y="Ülke", color="Risk"),
+            )
+            apply_chart_style(fig_heatmap, height=270)
+            fig_heatmap.update_layout(
+                margin=dict(l=8, r=8, t=8, b=8),
+                coloraxis_colorbar=dict(
+                    title=dict(text="Risk", font=dict(size=11)),
+                    thickness=12,
+                    len=0.72,
+                    outlinewidth=0,
+                    tickfont=dict(size=10),
+                ),
+                xaxis_title="",
+                yaxis_title="",
+            )
+            st.plotly_chart(fig_heatmap, use_container_width=True)
 
     with right_side:
         alert_card = st.container()
