@@ -1109,6 +1109,193 @@ section[data-testid="stSidebar"] {{
 
 
 # =========================================================
+
+
+# =========================================================
+# UI OVERRIDE — AÇIK PREMIUM + GRAFİKLER BACKGROUND İLE BÜTÜNLEŞİK
+# =========================================================
+st.markdown(
+    f"""
+<style>
+/* Sayfa arka planı: açık, canlı ama gözü yormayan premium gradient */
+.stApp {{
+    background:
+        radial-gradient(circle at 7% 12%, rgba(0,212,255,0.30), transparent 34%),
+        radial-gradient(circle at 88% 8%, rgba(34,197,94,0.24), transparent 38%),
+        radial-gradient(circle at 82% 78%, rgba(249,115,22,0.22), transparent 40%),
+        radial-gradient(circle at 35% 88%, rgba(139,92,246,0.18), transparent 42%),
+        linear-gradient(135deg, #e9fbff 0%, #effff7 42%, #fff4e6 74%, #f4edff 100%) !important;
+    color: #0f1d3a !important;
+}}
+
+.stApp::before {{
+    background:
+        linear-gradient(120deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+        radial-gradient(circle at 20% 18%, rgba(255,255,255,0.22), transparent 22%),
+        radial-gradient(circle at 78% 24%, rgba(255,255,255,0.16), transparent 26%) !important;
+}}
+
+/* Hero resmi kalsın, daha temiz ve premium dursun */
+.hero {{
+    border-radius: 38px !important;
+    background:
+        linear-gradient(105deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.38) 46%, rgba(255,255,255,0.08) 100%),
+        url("data:image/png;base64,{HERO_IMG}") !important;
+    background-size: cover !important;
+    background-position: center !important;
+    box-shadow:
+        0 28px 72px rgba(37,99,235,0.13),
+        0 12px 34px rgba(20,184,166,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.92) !important;
+}}
+
+/* KPI: resimli Apple/Stripe tarzı, okunaklı */
+.kpi-card {{
+    position: relative !important;
+    min-height: 132px !important;
+    border-radius: 28px !important;
+    overflow: hidden !important;
+    background-size: cover !important;
+    background-position: center !important;
+    border: 1px solid rgba(255,255,255,0.82) !important;
+    box-shadow:
+        0 18px 45px rgba(15,23,42,0.09),
+        inset 0 1px 0 rgba(255,255,255,0.92) !important;
+    transition: transform .24s ease, box-shadow .24s ease !important;
+}}
+
+.kpi-card:hover {{
+    transform: translateY(-4px) !important;
+    box-shadow:
+        0 28px 70px rgba(15,23,42,0.13),
+        inset 0 1px 0 rgba(255,255,255,0.95) !important;
+}}
+
+.kpi-card::before {{
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background:
+        linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.36)),
+        linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.18)) !important;
+    z-index: 1 !important;
+}}
+
+.kpi-card::after {{
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: radial-gradient(circle at 86% 18%, rgba(255,255,255,0.32), transparent 30%) !important;
+    transform: none !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
+}}
+
+.kpi-icon {{
+    z-index: 4 !important;
+    border-radius: 16px !important;
+    box-shadow:
+        0 12px 24px rgba(15,23,42,0.16),
+        inset 0 1px 0 rgba(255,255,255,0.35) !important;
+}}
+
+.kpi-text {{
+    position: relative !important;
+    z-index: 4 !important;
+    padding: 1rem 1rem 1rem 4.75rem !important;
+}}
+
+.kpi-title {{
+    font-size: .82rem !important;
+    font-weight: 900 !important;
+    color: #172554 !important;
+    line-height: 1.25 !important;
+    margin-bottom: .42rem !important;
+}}
+
+.kpi-value {{
+    font-size: 1.86rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: -1px !important;
+    color: #06152f !important;
+    text-shadow: 0 2px 14px rgba(255,255,255,0.72) !important;
+}}
+
+.kpi-value span {{
+    font-size: .82rem !important;
+    margin-left: .22rem !important;
+    color: #334155 !important;
+    font-weight: 850 !important;
+}}
+
+.kpi-subtitle {{
+    font-size: .78rem !important;
+    line-height: 1.35 !important;
+    color: #475569 !important;
+    font-weight: 750 !important;
+    margin-top: .42rem !important;
+}}
+
+/* Grafikler: ayrı kutu değil, background üstünde cam tabaka */
+[data-testid="stPlotlyChart"] {{
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0.15rem !important;
+    margin-bottom: .45rem !important;
+}}
+
+[data-testid="stPlotlyChart"] > div {{
+    background:
+        linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10)) !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+    border-radius: 26px !important;
+    border: 1px solid rgba(255,255,255,0.38) !important;
+    box-shadow:
+        0 10px 28px rgba(15,23,42,0.035),
+        inset 0 1px 0 rgba(255,255,255,0.45) !important;
+    overflow: hidden !important;
+}}
+
+[data-testid="stPlotlyChart"]:hover {{
+    transform: none !important;
+}}
+
+[data-testid="stPlotlyChart"]:hover > div {{
+    background:
+        linear-gradient(145deg, rgba(255,255,255,0.38), rgba(255,255,255,0.14)) !important;
+    box-shadow:
+        0 16px 38px rgba(15,23,42,0.055),
+        inset 0 1px 0 rgba(255,255,255,0.55) !important;
+}}
+
+/* Sağ bilgi panelleri de grafiklerle uyumlu */
+.info-panel,
+.risk-gauge-shell,
+.ml-premium-card,
+.ml-result-card,
+.insight-item {{
+    background: linear-gradient(145deg, rgba(255,255,255,0.56), rgba(255,255,255,0.24)) !important;
+    backdrop-filter: blur(18px) saturate(1.18) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.18) !important;
+    border: 1px solid rgba(255,255,255,0.62) !important;
+    box-shadow:
+        0 14px 38px rgba(15,23,42,0.055),
+        inset 0 1px 0 rgba(255,255,255,0.65) !important;
+}}
+
+.control-panel {{
+    background: linear-gradient(180deg, rgba(255,255,255,0.70), rgba(240,255,255,0.45)) !important;
+    backdrop-filter: blur(24px) saturate(1.18) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.18) !important;
+}}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 # ANA LAYOUT
 # =========================================================
 left_col, right_col = st.columns([0.86, 4.25], gap="large")
@@ -1427,8 +1614,8 @@ if show_alert and pressure_alert_count > 0:
 
 st.session_state.last_filter_signature = filter_signature
 
-# Popup'ı st.markdown yerine parent DOM'a JavaScript ile ekliyoruz.
-# Böylece HTML kod gibi görünmez, X'e basınca da sayfa/query param değişmeden kapanır.
+# Popup JS ile parent DOM'a eklenir.
+# Böylece HTML kod gibi görünmez; X'e basınca sayfa değişmeden kapanır.
 if st.session_state.alert_open and pressure_alert_count > 0:
     popup_html = f"""
 <div class="popup-backdrop" id="climate-popup-backdrop">
@@ -1483,8 +1670,8 @@ if st.session_state.alert_open and pressure_alert_count > 0:
         width=0,
     )
 
-    # Aynı filtrede sonraki rerun'da popup tekrar zorla açılmasın.
-    # Yeni filtre seçilirse show_alert tekrar True olur ve popup yeniden açılır.
+    # Aynı filtrede rerun olursa popup tekrar açılmasın.
+    # Yeni filtre seçilince tekrar açılır.
     st.session_state.alert_open = False
 
 
