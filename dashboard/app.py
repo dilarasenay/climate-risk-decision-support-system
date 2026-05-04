@@ -1,4 +1,5 @@
 import base64
+import json
 import sys
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 try:
     import joblib
@@ -963,12 +965,14 @@ section[data-testid="stSidebar"] {{
     height: 36px;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.78);
-    background: rgba(255,255,255,0.58);
-    color: #b42318;
+    background: rgba(255,255,255,0.72);
+    color: #b42318 !important;
     font-size: 1.42rem;
     font-weight: 950;
     cursor: pointer;
-    line-height: 1;
+    line-height: 34px;
+    text-align: center;
+    text-decoration: none !important;
     box-shadow: 0 10px 24px rgba(239,68,68,0.12);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -1406,7 +1410,7 @@ filter_signature = (
     round(selected_temp_range[1], 2),
     round(selected_events_range[0], 2),
     round(selected_events_range[1], 2),
-    auto_focus_top_country
+    auto_focus_top_country,
 )
 
 # İlk açılışta popup gösterme; sadece filtre değişince göster.
@@ -1417,45 +1421,71 @@ if "alert_initialized" not in st.session_state:
 
 show_alert = st.session_state.last_filter_signature != filter_signature
 
-# Filtreler değiştikçe popup yeniden açılır.
+# Filtre değişince ve uyarı varsa popup açılır.
 if show_alert and pressure_alert_count > 0:
     st.session_state.alert_open = True
 
 st.session_state.last_filter_signature = filter_signature
 
+# Popup'ı st.markdown yerine parent DOM'a JavaScript ile ekliyoruz.
+# Böylece HTML kod gibi görünmez, X'e basınca da sayfa/query param değişmeden kapanır.
 if st.session_state.alert_open and pressure_alert_count > 0:
-    st.markdown(
-        f"""
-        <div class="popup-backdrop" id="climate-popup-root">
-            <div class="climate-popup">
-                <button
-                    class="popup-close"
-                    type="button"
-                    aria-label="Uyarıyı kapat"
-                    onclick="document.getElementById('climate-popup-root').style.display='none';"
-                >×</button>
+    popup_html = f"""
+<div class="popup-backdrop" id="climate-popup-backdrop">
+    <div class="climate-popup">
+        <button
+            class="popup-close"
+            type="button"
+            onclick="document.getElementById('climate-popup-root')?.remove();"
+            aria-label="Uyarıyı kapat"
+        >×</button>
 
-                <div class="popup-icon">🚨</div>
-                <div class="popup-title">Kritik İklim Uyarısı</div>
+        <div class="popup-icon">🚨</div>
+        <div class="popup-title">Kritik İklim Uyarısı</div>
 
-                <div class="popup-text">
-                    Seçtiğin filtrelere göre <b>{pressure_alert_count}</b> çevresel baskı sinyali ve
-                    <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.
-                </div>
-
-                <div class="popup-filter-box">
-                    🌍 Ülke: <b>{selected_country}</b><br>
-                    📅 Yıl: <b>{selected_year[0]} - {selected_year[1]}</b><br>
-                    🛡 Risk seviyesi: <b>{selected_risk_level}</b><br>
-                    🏭 CO₂ eşik değeri: <b>{threshold:.2f}</b>
-                </div>
-
-                <div class="popup-badge">Yüksek Öncelik</div>
-            </div>
+        <div class="popup-text">
+            Seçtiğin filtrelere göre <b>{pressure_alert_count}</b> çevresel baskı sinyali ve
+            <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.
         </div>
+
+        <div class="popup-filter-box">
+            🌍 Ülke: <b>{selected_country}</b><br>
+            📅 Yıl: <b>{selected_year[0]} - {selected_year[1]}</b><br>
+            🛡 Risk seviyesi: <b>{selected_risk_level}</b><br>
+            🏭 CO₂ eşik değeri: <b>{threshold:.2f}</b>
+        </div>
+
+        <div class="popup-badge">Yüksek Öncelik</div>
+    </div>
+</div>
+"""
+
+    components.html(
+        f"""
+<script>
+(function() {{
+    const popupHtml = {json.dumps(popup_html)};
+    const rootId = "climate-popup-root";
+
+    const oldPopup = parent.document.getElementById(rootId);
+    if (oldPopup) {{
+        oldPopup.remove();
+    }}
+
+    const root = parent.document.createElement("div");
+    root.id = rootId;
+    root.innerHTML = popupHtml;
+    parent.document.body.appendChild(root);
+}})();
+</script>
         """,
-        unsafe_allow_html=True,
+        height=0,
+        width=0,
     )
+
+    # Aynı filtrede sonraki rerun'da popup tekrar zorla açılmasın.
+    # Yeni filtre seçilirse show_alert tekrar True olur ve popup yeniden açılır.
+    st.session_state.alert_open = False
 
 
 # =========================================================
