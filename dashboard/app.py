@@ -1,7 +1,10 @@
 import base64
 import json
 import sys
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", message=".*country names.*locationmode.*", category=DeprecationWarning)
 
 import pandas as pd
 import plotly.express as px
@@ -26,7 +29,7 @@ from db import load_data, insert_row
 
 st.set_page_config(
     page_title="İklim Risk Gösterge Paneli",
-    page_icon="🌍",
+    page_icon="",
     layout="wide",
 )
 
@@ -77,6 +80,55 @@ def risk_rengi(score: float) -> str:
     if score < 75:
         return "linear-gradient(135deg,#f97316,#ef4444)"
     return "linear-gradient(135deg,#ef4444,#7f1d1d)"
+
+
+
+
+def generate_ai_level2_insight(country, risk, pressure, co2, sea, events):
+    """Kural tabanlı yönetici özeti üretir; API kullanmaz."""
+    risk = float(risk) if risk is not None else 0
+    pressure = float(pressure) if pressure is not None else 0
+    co2 = float(co2) if co2 is not None else 0
+    sea = float(sea) if sea is not None else 0
+    events = float(events) if events is not None else 0
+
+    if risk >= 75 or pressure >= 70:
+        level = "Kritik"
+        verdict = "Acil izleme gerektiriyor."
+        action = "Karbon emisyonu, çevresel baskı ve aşırı olay sinyalleri öncelikli olarak takip edilmeli."
+        color = "linear-gradient(135deg,#ef4444,#991b1b)"
+    elif risk >= 50 or pressure >= 50:
+        level = "Yüksek"
+        verdict = "Risk seviyesi dikkat gerektiriyor."
+        action = "Emisyon azaltımı ve baskı trendleri düzenli takip edilmeli; artış yönlü sinyaller için erken uyarı kurgulanmalı."
+        color = "linear-gradient(135deg,#f97316,#ef4444)"
+    elif risk >= 25 or pressure >= 25:
+        level = "Orta"
+        verdict = "Kontrollü risk seviyesinde."
+        action = "Mevcut durum izlenmeli; CO₂, deniz seviyesi ve olay yoğunluğu belirli aralıklarla karşılaştırılmalı."
+        color = "linear-gradient(135deg,#facc15,#f97316)"
+    else:
+        level = "Düşük"
+        verdict = "Genel durum stabil görünüyor."
+        action = "Mevcut göstergeler korunmalı ve ani değişimler için temel izleme devam etmeli."
+        color = "linear-gradient(135deg,#22c55e,#14b8a6)"
+
+    drivers = {
+        "CO₂ emisyonu": co2,
+        "deniz seviyesi artışı": sea,
+        "aşırı hava olayları": events,
+        "iklim baskı skoru": pressure,
+    }
+    main_driver = max(drivers, key=drivers.get)
+
+    if level in ["Kritik", "Yüksek"]:
+        one_liner = f"{country} için risk sinyali güçlü; ana baskı kaynağı {main_driver}."
+    elif level == "Orta":
+        one_liner = f"{country} izlenebilir seviyede; ana dikkat noktası {main_driver}."
+    else:
+        one_liner = f"{country} için mevcut görünüm stabil; ana gösterge {main_driver}."
+
+    return level, verdict, action, main_driver, color, one_liner
 
 
 def section_header(title: str, subtitle: str = ""):
@@ -1287,14 +1339,628 @@ st.markdown(
 }}
 
 .control-panel {{
-    background: linear-gradient(180deg, rgba(255,255,255,0.70), rgba(240,255,255,0.45)) !important;
-    backdrop-filter: blur(24px) saturate(1.18) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(1.18) !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(235,252,255,0.52)) !important;
+    backdrop-filter: blur(28px) saturate(1.25) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(1.25) !important;
+    border-radius: 34px !important;
+    padding: 1.15rem 1.02rem !important;
+    border: 1px solid rgba(255,255,255,0.78) !important;
+}}
+
+.brand-icon {{
+    position: relative !important;
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 18px !important;
+    font-size: 0 !important;
+    overflow: hidden !important;
+    background:
+        radial-gradient(circle at 32% 28%, rgba(255,255,255,.92) 0 7%, transparent 8%),
+        radial-gradient(circle at 62% 68%, rgba(255,255,255,.30) 0 12%, transparent 13%),
+        linear-gradient(135deg, #14c8ff 0%, #2563eb 35%, #1ee6a8 72%, #ffd84d 100%) !important;
+}}
+
+.brand-icon::after {{
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,.72);
+    box-shadow: inset 0 0 0 5px rgba(255,255,255,.10);
+}}
+
+.control-title {{
+    display: flex !important;
+    align-items: center !important;
+    gap: .62rem !important;
+    font-size: 1.15rem !important;
+}}
+
+.control-title::before {{
+    content: "";
+    width: 8px;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #14c8ff, #1ee6a8, #ffd84d, #ff6b6b);
+    box-shadow: 0 10px 22px rgba(20,200,255,.28);
+}}
+
+.sidebar-section-title {{
+    display: flex;
+    align-items: center;
+    gap: .62rem;
+    font-size: 1.15rem;
+    font-weight: 950;
+    color: #0f1d3a;
+    letter-spacing: -.25px;
+    margin: .25rem 0 .7rem 0;
+}}
+
+.sidebar-section-title::before {{
+    content: "";
+    width: 8px;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #14c8ff, #1ee6a8, #ffd84d, #ff6b6b);
+    box-shadow: 0 10px 22px rgba(20,200,255,.28);
+}}
+
+.filter-summary-card {{
+    padding: .92rem;
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(255,255,255,.58), rgba(255,255,255,.24));
+    border: 1px solid rgba(255,255,255,.72);
+    box-shadow: 0 15px 34px rgba(15,23,42,.055), inset 0 1px 0 rgba(255,255,255,.70);
+    backdrop-filter: blur(18px) saturate(1.18);
+}}
+
+.filter-row {{
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .58rem 0;
+    border-bottom: 1px solid rgba(15,23,42,.07);
+}}
+
+.filter-row:last-child {{ border-bottom: 0; }}
+
+.filter-label {{
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 850;
+}}
+
+.filter-value {{
+    color: #0f1d3a;
+    font-size: .78rem;
+    font-weight: 950;
+    text-align: right;
+}}
+
+.popup-icon {{
+    font-size: 0 !important;
+}}
+
+.popup-icon::before {{
+    content: "";
+    width: 22px;
+    height: 22px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.88);
+    clip-path: polygon(50% 0%, 100% 86%, 0% 86%);
+    box-shadow: 0 0 0 7px rgba(255,255,255,.12);
+}}
+
+.hero-badge::before {{
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg,#14c8ff,#1ee6a8);
+    box-shadow: 0 0 0 4px rgba(20,200,255,.12);
+}}
+
+.kpi-icon {{
+    font-size: .86rem !important;
+    font-weight: 950 !important;
+    letter-spacing: -.2px !important;
 }}
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+
+# =========================================================
+# ULTRA OVERRIDE — ALT PANEL, ML, TABLO VE FORM PREMIUM FINAL
+# =========================================================
+st.markdown(
+    """
+<style>
+/* ULTRA: tüm alt bölümde daha bütünleşik premium yüzey */
+.block-container::before {
+    content: "";
+    position: fixed;
+    left: 17.8%;
+    right: 1.2rem;
+    bottom: 1.6rem;
+    height: 38%;
+    pointer-events: none;
+    z-index: -1;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(0,212,255,.16), transparent 32%),
+        radial-gradient(circle at 60% 18%, rgba(132,204,22,.13), transparent 34%),
+        radial-gradient(circle at 90% 60%, rgba(249,115,22,.14), transparent 38%);
+    filter: blur(2px);
+}
+
+/* Section başlıkları daha kurumsal */
+.section-header {
+    margin-top: 1.1rem !important;
+    margin-bottom: .72rem !important;
+    padding: .15rem 0 .15rem 0 !important;
+}
+.section-title {
+    font-size: 1.18rem !important;
+    letter-spacing: -.42px !important;
+}
+.section-subtitle {
+    font-size: .84rem !important;
+    color: #607089 !important;
+}
+.section-mark {
+    width: 9px !important;
+    height: 48px !important;
+    background: linear-gradient(180deg,#00d4ff 0%,#2563eb 28%,#8b5cf6 52%,#22c55e 76%,#f97316 100%) !important;
+    box-shadow: 0 12px 28px rgba(37,99,235,.22) !important;
+}
+
+/* ML tahmin formu: default Streamlit görünümünü kır */
+div[data-testid="stForm"] {
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 30px !important;
+    padding: 1.05rem 1.05rem .95rem 1.05rem !important;
+    background:
+        radial-gradient(circle at 8% 12%, rgba(0,212,255,.22), transparent 32%),
+        radial-gradient(circle at 86% 18%, rgba(139,92,246,.18), transparent 34%),
+        radial-gradient(circle at 60% 100%, rgba(34,197,94,.14), transparent 36%),
+        linear-gradient(145deg, rgba(255,255,255,.62), rgba(255,255,255,.22)) !important;
+    border: 1px solid rgba(255,255,255,.70) !important;
+    box-shadow:
+        0 24px 66px rgba(37,99,235,.09),
+        0 12px 32px rgba(20,184,166,.07),
+        inset 0 1px 0 rgba(255,255,255,.82) !important;
+    backdrop-filter: blur(22px) saturate(1.22) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.22) !important;
+}
+
+div[data-testid="stForm"]::before {
+    content: "";
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    top: 0;
+    height: 4px;
+    border-radius: 0 0 999px 999px;
+    background: linear-gradient(90deg,#00d4ff,#2563eb,#8b5cf6,#22c55e,#facc15,#fb923c);
+    opacity: .95;
+}
+
+/* Input / number input alanları */
+div[data-baseweb="input"] > div,
+div[data-baseweb="select"] > div,
+.stNumberInput input,
+.stTextInput input {
+    background: rgba(255,255,255,.72) !important;
+    border: 1px solid rgba(255,255,255,.74) !important;
+    border-radius: 16px !important;
+    box-shadow:
+        0 10px 24px rgba(15,23,42,.045),
+        inset 0 1px 0 rgba(255,255,255,.86) !important;
+    color: #0f1d3a !important;
+    font-weight: 760 !important;
+}
+
+.stNumberInput label,
+.stTextInput label,
+.stSelectbox label,
+.stSlider label,
+.stCheckbox label {
+    color: #334155 !important;
+    font-weight: 820 !important;
+    font-size: .82rem !important;
+}
+
+/* +/- butonlarını daha az sert göster */
+button[data-testid="stNumberInputStepUp"],
+button[data-testid="stNumberInputStepDown"] {
+    background: rgba(255,255,255,.36) !important;
+    border: 0 !important;
+    color: #0f1d3a !important;
+    border-radius: 12px !important;
+}
+
+/* Ana aksiyon butonları */
+.stButton > button,
+.stFormSubmitButton > button {
+    min-height: 44px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 28%),
+        linear-gradient(135deg,#2563eb 0%,#00d4ff 44%,#22c55e 100%) !important;
+    color: white !important;
+    font-weight: 920 !important;
+    letter-spacing: -.15px !important;
+    box-shadow:
+        0 16px 34px rgba(37,99,235,.22),
+        0 8px 20px rgba(20,184,166,.15) !important;
+    transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    transform: translateY(-2px) !important;
+    filter: saturate(1.08) brightness(1.02) !important;
+    box-shadow:
+        0 22px 46px rgba(37,99,235,.28),
+        0 12px 26px rgba(20,184,166,.18) !important;
+}
+
+/* Download butonu ayrı premium */
+.stDownloadButton > button {
+    min-height: 44px !important;
+    border: 1px solid rgba(255,255,255,.82) !important;
+    border-radius: 16px !important;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.42), transparent 28%),
+        linear-gradient(135deg,#0ea5e9,#2563eb,#8b5cf6) !important;
+    color: #fff !important;
+    font-weight: 920 !important;
+    box-shadow: 0 16px 38px rgba(37,99,235,.22) !important;
+}
+
+/* Model durumu kartı: daha dolu, daha premium */
+.info-panel {
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 30px !important;
+    padding: 1.15rem !important;
+}
+.info-panel::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 10% 14%, rgba(0,212,255,.18), transparent 30%),
+        radial-gradient(circle at 92% 16%, rgba(139,92,246,.16), transparent 34%),
+        radial-gradient(circle at 60% 100%, rgba(34,197,94,.14), transparent 38%);
+}
+.info-eyebrow,
+.info-big,
+.info-line,
+.info-badge { position: relative; z-index: 2; }
+.info-eyebrow {
+    color: #64748b !important;
+    font-size: .73rem !important;
+    letter-spacing: .7px !important;
+}
+.info-big {
+    font-size: 2rem !important;
+    color: #081936 !important;
+}
+.info-line {
+    font-size: .84rem !important;
+    color: #52657d !important;
+}
+.info-badge {
+    border: 1px solid rgba(255,255,255,.45) !important;
+    box-shadow: 0 14px 28px rgba(37,99,235,.16) !important;
+}
+
+/* Tablo: en zayıf görünen yeri premium glass tablo yap */
+[data-testid="stDataFrame"] {
+    border-radius: 24px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255,255,255,.72) !important;
+    background:
+        linear-gradient(145deg, rgba(255,255,255,.62), rgba(255,255,255,.24)) !important;
+    backdrop-filter: blur(20px) saturate(1.18) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.18) !important;
+    box-shadow:
+        0 22px 58px rgba(15,23,42,.075),
+        inset 0 1px 0 rgba(255,255,255,.78) !important;
+}
+[data-testid="stDataFrame"] div[role="grid"] {
+    border-radius: 24px !important;
+    border: 0 !important;
+}
+
+/* Sidebar yeni kayıt formu çok uzun görünmesin diye sıkılaştırma */
+.left-rail div[data-testid="stForm"] {
+    padding: .85rem .8rem .78rem .8rem !important;
+    border-radius: 24px !important;
+}
+.left-rail .stFormSubmitButton > button {
+    background: linear-gradient(135deg,#ffffff,#eefbff) !important;
+    color: #0f1d3a !important;
+    border: 1px solid rgba(255,255,255,.82) !important;
+    box-shadow: 0 14px 28px rgba(15,23,42,.08) !important;
+}
+
+/* Sağ alt boşlukları daha dengeli */
+.element-container:has([data-testid="stDataFrame"]) {
+    margin-top: .2rem !important;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+
+
+# =========================================================
+# ULTRA PREMIUM GAUGE OVERRIDE — DEFAULT PLOTLY GAUGE YERİNE ANİMASYONLU GLASS GAUGE
+# =========================================================
+st.markdown("""
+<style>
+@property --gangle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+.ultra-gauge-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    padding: 1.05rem 1.05rem 1.15rem 1.05rem;
+    min-height: 330px;
+    background:
+        radial-gradient(circle at 15% 12%, rgba(0,212,255,0.22), transparent 34%),
+        radial-gradient(circle at 86% 18%, rgba(139,92,246,0.18), transparent 34%),
+        radial-gradient(circle at 50% 100%, rgba(249,115,22,0.16), transparent 40%),
+        linear-gradient(145deg, rgba(255,255,255,0.62), rgba(255,255,255,0.22));
+    border: 1px solid rgba(255,255,255,0.72);
+    box-shadow:
+        0 22px 65px rgba(37,99,235,0.10),
+        0 16px 44px rgba(20,184,166,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.82);
+    backdrop-filter: blur(22px) saturate(1.18);
+    -webkit-backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.ultra-gauge-card::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background: conic-gradient(from 180deg, transparent, rgba(255,255,255,0.32), transparent 34%);
+    animation: gaugeSheen 7s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes gaugeSheen {
+    to { transform: rotate(360deg); }
+}
+
+.ultra-gauge-top {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .35rem;
+}
+
+.ultra-gauge-eyebrow {
+    font-size: .72rem;
+    font-weight: 950;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+
+.ultra-gauge-name {
+    font-size: 1.08rem;
+    font-weight: 950;
+    color: #0f1d3a;
+    letter-spacing: -.25px;
+    line-height: 1.1;
+}
+
+.ultra-gauge-pill {
+    padding: .46rem .72rem;
+    border-radius: 999px;
+    color: white;
+    font-size: .75rem;
+    font-weight: 950;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.14);
+    white-space: nowrap;
+}
+
+.ultra-gauge-stage {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 390px);
+    height: 214px;
+    margin: .2rem auto 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.ultra-gauge-outer {
+    --gangle: 0deg;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: -180px;
+    left: 50%;
+    transform: translateX(-50%);
+    background:
+        conic-gradient(
+            from 270deg,
+            #20c997 0deg,
+            #b6e51d 52deg,
+            #facc15 82deg,
+            #fb923c 125deg,
+            #ef4444 var(--gangle),
+            rgba(148,163,184,0.18) var(--gangle) 180deg,
+            transparent 180deg 360deg
+        );
+    filter: drop-shadow(0 18px 34px rgba(0,212,255,0.15));
+    animation: gaugeFill 1.25s cubic-bezier(.18,.9,.2,1) forwards;
+}
+
+.ultra-gauge-outer::before {
+    content: "";
+    position: absolute;
+    inset: 18px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 32%, rgba(255,255,255,0.78), rgba(255,255,255,0.36) 48%, rgba(255,255,255,0.18) 66%),
+        linear-gradient(145deg, rgba(235,250,255,0.72), rgba(255,246,234,0.58));
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.92),
+        0 0 0 1px rgba(255,255,255,0.32);
+}
+
+.ultra-gauge-outer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 270deg, rgba(255,255,255,0.42), transparent 38deg, transparent 142deg, rgba(255,255,255,0.35) 180deg, transparent 181deg);
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+}
+
+@keyframes gaugeFill {
+    from { --gangle: 0deg; }
+    to { --gangle: var(--target-angle); }
+}
+
+.ultra-gauge-needle {
+    position: absolute;
+    z-index: 5;
+    left: 50%;
+    bottom: 26px;
+    width: 4px;
+    height: 128px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #0f172a, rgba(15,23,42,0.38));
+    transform-origin: 50% 100%;
+    transform: translateX(-50%) rotate(var(--needle-angle));
+    box-shadow: 0 10px 28px rgba(15,23,42,0.18);
+    animation: needlePop .9s cubic-bezier(.2,.85,.25,1) both;
+}
+
+.ultra-gauge-needle::before {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: #0f172a;
+    box-shadow: 0 0 0 5px rgba(255,255,255,0.62), 0 0 24px rgba(0,212,255,0.28);
+}
+
+.ultra-gauge-hub {
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    bottom: 18px;
+    width: 30px;
+    height: 30px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #0f172a 55%, #020617);
+    box-shadow: 0 0 0 8px rgba(255,255,255,0.62), 0 16px 32px rgba(15,23,42,0.16);
+}
+
+@keyframes needlePop {
+    from { opacity: 0; transform: translateX(-50%) rotate(-90deg); }
+    to { opacity: 1; transform: translateX(-50%) rotate(var(--needle-angle)); }
+}
+
+.ultra-gauge-value {
+    position: absolute;
+    z-index: 7;
+    left: 50%;
+    bottom: 58px;
+    transform: translateX(-50%);
+    text-align: center;
+    color: #0f1d3a;
+    font-size: 3.2rem;
+    line-height: .95;
+    font-weight: 950;
+    letter-spacing: -1.8px;
+    text-shadow: 0 0 28px rgba(0,212,255,0.26), 0 4px 18px rgba(255,255,255,0.75);
+}
+
+.ultra-gauge-label {
+    margin-top: .28rem;
+    font-size: .80rem;
+    letter-spacing: .18px;
+    font-weight: 850;
+    color: #64748b;
+}
+
+.ultra-gauge-scale {
+    position: absolute;
+    z-index: 8;
+    left: 0;
+    right: 0;
+    bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 .35rem;
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 850;
+}
+
+.ultra-gauge-foot {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .7rem;
+    margin-top: .7rem;
+}
+
+.ultra-gauge-mini {
+    padding: .78rem .82rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.46);
+    border: 1px solid rgba(255,255,255,0.62);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.66);
+}
+
+.ultra-gauge-mini-title {
+    font-size: .72rem;
+    color: #64748b;
+    font-weight: 900;
+    margin-bottom: .15rem;
+}
+
+.ultra-gauge-mini-value {
+    font-size: .86rem;
+    color: #0f1d3a;
+    font-weight: 950;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# AI Level 2 büyük kart kaldırıldı; sağ panelde sade özet kullanılacak.
+
 
 # ANA LAYOUT
 # =========================================================
@@ -1305,7 +1971,7 @@ with left_col:
     st.markdown(
         """
         <div class="brand-card">
-            <div class="brand-icon">🌍</div>
+            <div class="brand-icon"></div>
             <div>
                 <div class="brand-title">İKLİM RİSK</div>
                 <div class="brand-sub">Gösterge Paneli</div>
@@ -1315,7 +1981,7 @@ with left_col:
         unsafe_allow_html=True,
     )
     st.markdown('<div class="control-topline"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="control-title">🎛 Filtreler</div>', unsafe_allow_html=True)
+    st.markdown('<div class="control-title">Filtreler</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="control-text">Risk seviyesi, yıl aralığı ve çevresel eşikleri bu panelden yönet.</div>',
         unsafe_allow_html=True,
@@ -1404,15 +2070,22 @@ with left_col:
     )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
-    st.markdown("### 📌 Aktif Filtre Özeti")
-    st.caption(f"🌐 Ülke: {selected_country}")
-    st.caption(f"📅 Yıl: {selected_year[0]} - {selected_year[1]}")
-    st.caption(f"🛡 Risk seviyesi: {selected_risk_level}")
-    st.caption(f"⭐ Top N: {top_n}")
-    st.caption(f"🚨 Sadece uyarılar: {'Evet' if only_alerts else 'Hayır'}")
+    st.markdown(
+        f"""
+        <div class="sidebar-section-title">Aktif Filtre Özeti</div>
+        <div class="filter-summary-card">
+            <div class="filter-row"><span class="filter-label">Ülke</span><span class="filter-value">{selected_country}</span></div>
+            <div class="filter-row"><span class="filter-label">Yıl</span><span class="filter-value">{selected_year[0]} - {selected_year[1]}</span></div>
+            <div class="filter-row"><span class="filter-label">Risk seviyesi</span><span class="filter-value">{selected_risk_level}</span></div>
+            <div class="filter-row"><span class="filter-label">Top N</span><span class="filter-value">{top_n}</span></div>
+            <div class="filter-row"><span class="filter-label">Uyarılar</span><span class="filter-value">{'Açık' if only_alerts else 'Kapalı'}</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="control-divider"></div>', unsafe_allow_html=True)
-    st.markdown("### ➕ Yeni Kayıt")
+    st.markdown('<div class="sidebar-section-title">Yeni Kayıt</div>', unsafe_allow_html=True)
 
     with st.form("new_record_form"):
         new_country = st.text_input("Ülke", placeholder="Örn: Mexico")
@@ -1548,6 +2221,8 @@ if detail_df.empty:
 
 detail_avg_temp = round(detail_df[COL_TEMP].mean(), 2)
 detail_avg_co2 = round(detail_df[COL_CO2].mean(), 3)
+detail_avg_sea = round(detail_df[COL_SEA].mean(), 2)
+detail_avg_events = round(detail_df[COL_EVENTS].mean(), 1)
 detail_avg_risk = round(detail_df[COL_RISK].mean(), 1)
 detail_avg_pressure = round(detail_df["climate_pressure_score"].mean(), 1)
 detail_alerts = int((detail_df["dynamic_alert"] == "Yüksek Karbon Emisyonu Uyarısı").sum())
@@ -1627,7 +2302,7 @@ if st.session_state.alert_open and pressure_alert_count > 0:
             aria-label="Uyarıyı kapat"
         >×</button>
 
-        <div class="popup-icon">🚨</div>
+        <div class="popup-icon"></div>
         <div class="popup-title">Kritik İklim Uyarısı</div>
 
         <div class="popup-text">
@@ -1636,10 +2311,10 @@ if st.session_state.alert_open and pressure_alert_count > 0:
         </div>
 
         <div class="popup-filter-box">
-            🌍 Ülke: <b>{selected_country}</b><br>
-            📅 Yıl: <b>{selected_year[0]} - {selected_year[1]}</b><br>
-            🛡 Risk seviyesi: <b>{selected_risk_level}</b><br>
-            🏭 CO₂ eşik değeri: <b>{threshold:.2f}</b>
+            Ülke: <b>{selected_country}</b><br>
+            Yıl: <b>{selected_year[0]} - {selected_year[1]}</b><br>
+            Risk seviyesi: <b>{selected_risk_level}</b><br>
+            CO₂ eşik değeri: <b>{threshold:.2f}</b>
         </div>
 
         <div class="popup-badge">Yüksek Öncelik</div>
@@ -1675,6 +2350,11 @@ if st.session_state.alert_open and pressure_alert_count > 0:
     st.session_state.alert_open = False
 
 
+st.markdown('''<style>
+/* RIGHT SIDE ULTRA COCKPIT - CLEAN FINAL */
+.side-cockpit{border-radius:30px;padding:1.05rem;background:radial-gradient(circle at 10% 12%,rgba(0,212,255,.18),transparent 34%),radial-gradient(circle at 95% 15%,rgba(255,122,0,.16),transparent 38%),linear-gradient(145deg,rgba(255,255,255,.70),rgba(255,255,255,.28));border:1px solid rgba(255,255,255,.72);box-shadow:0 22px 60px rgba(15,23,42,.075),inset 0 1px 0 rgba(255,255,255,.78);backdrop-filter:blur(22px) saturate(1.18);-webkit-backdrop-filter:blur(22px) saturate(1.18);margin-bottom:.72rem}.side-cockpit-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.7rem;margin-bottom:.8rem}.side-eyebrow{font-size:.72rem;font-weight:950;letter-spacing:.55px;text-transform:uppercase;color:#64748b}.side-title{font-size:1.22rem;line-height:1.05;font-weight:950;color:#0b1635;letter-spacing:-.35px;margin-top:.14rem}.side-pill{flex:none;padding:.44rem .76rem;border-radius:999px;color:white;font-size:.76rem;font-weight:950;box-shadow:0 12px 26px rgba(15,23,42,.14)}.side-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.62rem;margin:.55rem 0 .75rem 0}.side-stat{border-radius:20px;padding:.78rem;background:rgba(255,255,255,.54);border:1px solid rgba(255,255,255,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}.side-stat-label{font-size:.72rem;color:#64748b;font-weight:850;margin-bottom:.18rem}.side-stat-value{font-size:1.18rem;color:#0b1635;font-weight:950;letter-spacing:-.25px}.side-note{border-radius:20px;padding:.82rem .9rem;background:linear-gradient(135deg,rgba(255,255,255,.58),rgba(255,255,255,.24));border:1px solid rgba(255,255,255,.65);color:#475569;font-size:.82rem;line-height:1.45;font-weight:760}.side-note b{color:#0b1635}.side-alert-soft{border-radius:24px;padding:.95rem;background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,238,228,.46));border:1px solid rgba(255,255,255,.72);box-shadow:0 16px 42px rgba(239,68,68,.08),inset 0 1px 0 rgba(255,255,255,.74);margin-bottom:.72rem}.side-alert-title{font-size:.78rem;font-weight:950;letter-spacing:.45px;text-transform:uppercase;color:#b42318;margin-bottom:.35rem}.side-alert-text{font-size:.88rem;line-height:1.48;color:#7f1d1d;font-weight:780}
+</style>''', unsafe_allow_html=True)
+
 # =========================================================
 # SAĞ PANEL
 # =========================================================
@@ -1682,7 +2362,7 @@ with right_col:
     st.markdown(
         """
         <div class="hero">
-            <div class="hero-badge">🌍 İklim Zekâsı • Gerçek Zamanlı Sinyaller</div>
+            <div class="hero-badge">İklim Zekâsı • Gerçek Zamanlı Sinyaller</div>
             <div class="hero-title">İKLİM RİSK<br>GÖSTERGE PANELİ</div>
             <div class="hero-text">
                 İklim riski, karbon baskısı, okyanus stresi ve çevresel sinyalleri
@@ -1695,17 +2375,17 @@ with right_col:
 
     k1, k2, k3, k4, k5, k6 = st.columns(6, gap="small")
     with k1:
-        metric_kpi("🌡", "Ortalama Sıcaklık", fmt_num(avg_temp, 2), "°C", "İklim ısı eğilimi", "linear-gradient(135deg,#ff7a00,#ff0054)", KPI_TEMP)
+        metric_kpi("T", "Ortalama Sıcaklık", fmt_num(avg_temp, 2), "°C", "İklim ısı eğilimi", "linear-gradient(135deg,#ff7a00,#ff0054)", KPI_TEMP)
     with k2:
-        metric_kpi("🏭", "Ortalama CO₂", fmt_num(avg_co2, 3), "", "Karbon baskısı", "linear-gradient(135deg,#00d4ff,#2563eb)", KPI_CO2)
+        metric_kpi("CO₂", "Ortalama CO₂", fmt_num(avg_co2, 3), "", "Karbon baskısı", "linear-gradient(135deg,#00d4ff,#2563eb)", KPI_CO2)
     with k3:
-        metric_kpi("🌊", "Deniz Seviyesi", fmt_num(avg_sea, 2), "mm", "Okyanus yükselişi", "linear-gradient(135deg,#06b6d4,#14b8a6)", KPI_SEA)
+        metric_kpi("SL", "Deniz Seviyesi", fmt_num(avg_sea, 2), "mm", "Okyanus yükselişi", "linear-gradient(135deg,#06b6d4,#14b8a6)", KPI_SEA)
     with k4:
-        metric_kpi("☔", "Aşırı Olay Sayısı", str(avg_events), "", "İklim olay sıklığı", "linear-gradient(135deg,#8b5cf6,#6366f1)", KPI_WEATHER)
+        metric_kpi("EV", "Aşırı Olay Sayısı", str(avg_events), "", "İklim olay sıklığı", "linear-gradient(135deg,#8b5cf6,#6366f1)", KPI_WEATHER)
     with k5:
-        metric_kpi("🛡", "İklim Risk Skoru", fmt_num(avg_risk, 1), "", "Küresel risk endeksi", "linear-gradient(135deg,#ff4d6d,#ef4444)", KPI_RISK)
+        metric_kpi("R", "İklim Risk Skoru", fmt_num(avg_risk, 1), "", "Küresel risk endeksi", "linear-gradient(135deg,#ff4d6d,#ef4444)", KPI_RISK)
     with k6:
-        metric_kpi("🌱", "İklim Baskı Skoru", fmt_num(avg_pressure, 1), "", "Birleşik skor", "linear-gradient(135deg,#22c55e,#84cc16)", KPI_BIO)
+        metric_kpi("P", "İklim Baskı Skoru", fmt_num(avg_pressure, 1), "", "Birleşik skor", "linear-gradient(135deg,#22c55e,#84cc16)", KPI_BIO)
 
     st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
@@ -1803,7 +2483,7 @@ with right_col:
                 bgcolor="rgba(0,0,0,0)",
             ),
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, width="stretch")
 
         top5 = country_risk_bar.head(5).copy()
         if len(top5) > 0:
@@ -1870,88 +2550,44 @@ with right_col:
                 xaxis_title="",
                 yaxis_title="",
             )
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+            st.plotly_chart(fig_heatmap, width="stretch")
 
     with right_side:
-        alert_card = st.container()
-        with alert_card:
-            st.markdown(
-                f"""
-                <div class="info-panel" style="background:linear-gradient(145deg,rgba(255,255,255,.88),rgba(255,236,236,.72));">
-                    <div class="info-eyebrow" style="color:#b42318;">🚨 Kritik İklim Uyarısı</div>
-                    <div class="info-line" style="color:#8b2b2b;font-size:.95rem;">
-                        Filtrelenen sonuçlarda <b>{pressure_alert_count}</b> çevresel baskı sinyali ve
-                        <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.
-                    </div>
-                    <div class="info-badge" style="background:linear-gradient(135deg,#ef4444,#f97316);">Yüksek Öncelik</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        gauge_score = max(0, min(100, float(detail_avg_pressure)))
+        gauge_label = risk_etiketi(gauge_score)
+        gauge_color = risk_rengi(gauge_score)
 
-        s1, s2 = st.columns(2, gap="small")
-        with s1:
-            info_panel(
-                "Yönetici Özeti",
-                most_risky_country,
-                [
-                    f"Geçerli filtrelerde {most_risky_country} öne çıkıyor.",
-                    f"Ortalama risk skoru {most_risky_score}.",
-                ],
-                risk_etiketi(most_risky_score),
-                risk_rengi(most_risky_score),
-            )
-        with s2:
-            info_panel(
-                "Seçili Ülke",
-                detail_country,
-                [
-                    f"Sıcaklık: {detail_avg_temp}°C",
-                    f"CO₂: {detail_avg_co2}",
-                    f"Risk: {detail_avg_risk}",
-                    f"Baskı: {detail_avg_pressure}",
-                    f"Uyarı: {detail_alerts}",
-                ],
-                risk_etiketi(detail_avg_risk),
-                risk_rengi(detail_avg_risk),
-            )
+        st.markdown(
+            f"""<div class="side-alert-soft"><div class="side-alert-title">Kritik İklim Uyarısı</div><div class="side-alert-text">Filtrelenen sonuçlarda <b>{pressure_alert_count}</b> çevresel baskı sinyali ve <b>{alert_count}</b> yüksek CO₂ uyarısı bulundu.</div></div>""",
+            unsafe_allow_html=True,
+        )
 
-        st.markdown('<div class="risk-gauge-shell">', unsafe_allow_html=True)
-        chart_title("İklim Baskı Ölçeri", "Seçili ülkenin birleşik çevresel baskı seviyesi")
-        gauge = go.Figure(
-            go.Indicator(
-                mode="gauge+number",
-                value=detail_avg_pressure,
-                number={"font": {"size": 42, "color": "#0f766e"}, "suffix": ""},
-                gauge={
-                    "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748b"},
-                    "bar": {"color": "#2563eb", "thickness": 0.22},
-                    "bgcolor": "rgba(255,255,255,0)",
-                    "borderwidth": 0,
-                    "steps": [
-                        {"range": [0, 25], "color": "#22c55e"},
-                        {"range": [25, 50], "color": "#facc15"},
-                        {"range": [50, 75], "color": "#fb923c"},
-                        {"range": [75, 100], "color": "#ef4444"},
-                    ],
-                    "threshold": {
-                        "line": {"color": "#0f1d3a", "width": 4},
-                        "thickness": 0.82,
-                        "value": detail_avg_pressure,
-                    },
-                },
-            )
+        st.markdown(
+            f"""<div class="side-cockpit"><div class="side-cockpit-top"><div><div class="side-eyebrow">Canlı Risk Kokpiti</div><div class="side-title">{detail_country}</div></div><div class="side-pill" style="background:{gauge_color};">{gauge_label}</div></div><div class="side-stat-grid"><div class="side-stat"><div class="side-stat-label">Risk Skoru</div><div class="side-stat-value">{detail_avg_risk}</div></div><div class="side-stat"><div class="side-stat-label">Baskı Skoru</div><div class="side-stat-value">{gauge_score:.1f}</div></div><div class="side-stat"><div class="side-stat-label">CO₂ Ort.</div><div class="side-stat-value">{detail_avg_co2}</div></div><div class="side-stat"><div class="side-stat-label">Uyarı</div><div class="side-stat-value">{detail_alerts}</div></div></div></div>""",
+            unsafe_allow_html=True,
         )
-        gauge.update_layout(
-            height=250,
-            margin=dict(l=0, r=0, t=0, b=0),
-            paper_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#0f1d3a"},
+
+        target_angle = round(gauge_score * 1.8, 2)
+        needle_angle = round(-90 + (gauge_score * 1.8), 2)
+        gauge_html = (
+            f'<div class="ultra-gauge-card">'
+            f'<div class="ultra-gauge-top"><div><div class="ultra-gauge-eyebrow">Canlı Risk Radarı</div><div class="ultra-gauge-name">İklim Baskı Ölçeri</div></div><div class="ultra-gauge-pill" style="background:{gauge_color};">{gauge_label}</div></div>'
+            f'<div class="ultra-gauge-stage">'
+            f'<div class="ultra-gauge-outer" style="--target-angle:{target_angle}deg;"></div>'
+            f'<div class="ultra-gauge-needle" style="--needle-angle:{needle_angle}deg;"></div>'
+            f'<div class="ultra-gauge-hub"></div>'
+            f'<div class="ultra-gauge-value">{gauge_score:.1f}<div class="ultra-gauge-label">Birleşik çevresel baskı skoru</div></div>'
+            f'<div class="ultra-gauge-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>'
+            f'</div>'
+            f'<div class="ultra-gauge-foot"><div class="ultra-gauge-mini"><div class="ultra-gauge-mini-title">Trend İzleme</div><div class="ultra-gauge-mini-value">Seçili aralık aktif</div></div><div class="ultra-gauge-mini"><div class="ultra-gauge-mini-title">Durum</div><div class="ultra-gauge-mini-value">{gauge_label} seviye</div></div></div>'
+            f'</div>'
         )
-        st.plotly_chart(gauge, use_container_width=True)
-        insight_item("📈", "Yön", "Çevresel baskı trendi seçili aralıkta izleniyor.", "linear-gradient(135deg,#22c55e,#14b8a6)")
-        insight_item("⚡", "Durum", f"Ortalama baskı skoru {detail_avg_pressure} seviyesinde.", "linear-gradient(135deg,#f97316,#ef4444)")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(gauge_html, unsafe_allow_html=True)
+
+        st.markdown(
+            f"""<div class="side-note"><b>Akıllı Özet:</b> Seçili filtrelerde <b>{most_risky_country}</b> en yüksek risk sinyalini veriyor. Ortalama risk <b>{most_risky_score}</b>; seçili ülkenin çevresel baskı seviyesi <b>{gauge_label}</b>.</div>""",
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
@@ -1962,7 +2598,7 @@ with right_col:
         fig_risk_trend.update_traces(line=dict(width=3.6, color="#ff006e"), marker=dict(size=8, color="#ef4444"))
         apply_chart_style(fig_risk_trend, height=230)
         fig_risk_trend.update_layout(xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig_risk_trend, use_container_width=True)
+        st.plotly_chart(fig_risk_trend, width="stretch")
 
     with c2:
         chart_title("CO₂ Trend Grafiği", "Karbon emisyon yoğunluğu")
@@ -1970,7 +2606,7 @@ with right_col:
         fig_co2_trend.update_traces(line=dict(width=3.2, color="#00b4d8"), fillcolor="rgba(0,180,216,0.34)")
         apply_chart_style(fig_co2_trend, height=230)
         fig_co2_trend.update_layout(xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig_co2_trend, use_container_width=True)
+        st.plotly_chart(fig_co2_trend, width="stretch")
 
     with c3:
         chart_title("Sıcaklık Trend Grafiği", "Ortalama sıcaklık değişimi")
@@ -1978,7 +2614,7 @@ with right_col:
         fig_temp.update_traces(line=dict(width=3.4, color="#ff0054"), marker=dict(size=8, color="#ff7a00"))
         apply_chart_style(fig_temp, height=230)
         fig_temp.update_layout(xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig_temp, use_container_width=True)
+        st.plotly_chart(fig_temp, width="stretch")
 
     with c4:
         chart_title("Aşırı Olay Trend Grafiği", "Yıllara göre olay sıklığı")
@@ -1991,7 +2627,7 @@ with right_col:
         )
         apply_chart_style(fig_events, height=230)
         fig_events.update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False)
-        st.plotly_chart(fig_events, use_container_width=True)
+        st.plotly_chart(fig_events, width="stretch")
 
     st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
@@ -2011,7 +2647,7 @@ with right_col:
         fig_bar.update_yaxes(categoryorder="total ascending")
         apply_chart_style(fig_bar, height=300)
         fig_bar.update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
 
     with row2_col2:
         chart_title("İklim Baskı Skoru Trendi", "Birleşik skorun yıllık hareketi")
@@ -2019,7 +2655,7 @@ with right_col:
         fig_pressure_trend.update_traces(line=dict(width=3.5, color="#00a896"), fillcolor="rgba(34,197,94,0.28)")
         apply_chart_style(fig_pressure_trend, height=300)
         fig_pressure_trend.update_layout(xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig_pressure_trend, use_container_width=True)
+        st.plotly_chart(fig_pressure_trend, width="stretch")
 
     with row2_col3:
         chart_title("CO₂ ve Risk İlişkisi", "Emisyon, risk ve olay yoğunluğu")
@@ -2035,7 +2671,7 @@ with right_col:
         )
         apply_chart_style(fig_scatter, height=300)
         fig_scatter.update_layout(xaxis_title="Ortalama CO₂", yaxis_title="Ortalama Risk")
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        st.plotly_chart(fig_scatter, width="stretch")
 
     st.markdown("<div style='height:.75rem'></div>", unsafe_allow_html=True)
 
@@ -2059,7 +2695,7 @@ with right_col:
                     ml_co2 = st.number_input("CO₂ Emisyonu", value=float(avg_co2), step=0.01, format="%.3f")
                     ml_events = st.number_input("Aşırı Hava Olayı", value=float(avg_events), step=1.0, format="%.0f")
 
-                predict_submit = st.form_submit_button("🤖 ML ile Risk Tahmini Yap")
+                predict_submit = st.form_submit_button("ML ile Risk Tahmini Yap")
 
         with ml_col2:
             metric_lines = [f"Eğitim gözlemi: {model_metrics.get('train_rows', '-')}"]
@@ -2084,7 +2720,7 @@ with right_col:
             st.markdown(
                 f"""
                 <div class="info-panel" style="margin-top:.7rem;">
-                    <div class="info-eyebrow">🤖 Makine Öğrenmesi Tahmini</div>
+                    <div class="info-eyebrow">Makine Öğrenmesi Tahmini</div>
                     <div class="info-big">{predicted_score}</div>
                     <div class="info-line">Girilen değerlere göre tahmini risk seviyesi: <b>{predicted_label}</b></div>
                     <div class="info-badge" style="background:{risk_rengi(predicted_score)};">{predicted_label}</div>
@@ -2111,11 +2747,11 @@ with right_col:
                 "pressure_alert": "Baskı Durumu",
             }
         )
-        st.dataframe(alert_table, use_container_width=True, hide_index=True)
+        st.dataframe(alert_table, width="stretch", hide_index=True)
 
         csv = alert_table.to_csv(index=False).encode("utf-8-sig")
         st.download_button(
-            "📥 CSV İndir",
+            "CSV İndir",
             data=csv,
             file_name="climate_alerts.csv",
             mime="text/csv",
